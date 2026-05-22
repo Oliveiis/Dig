@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isValidPOI(data) {
+      return data.id is string &&
+             data.name is string &&
+             data.name.size() > 0 &&
+             data.name.size() < 200 &&
+             data.category in ['cafe', 'restaurant', 'bar'] &&
+             data.coordinates.lat is number &&
+             data.coordinates.lng is number;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /pois/{poiId} {
+      // POIs are globally readable (cached data)
+      allow read: if true;
+      
+      // Only authenticated users can update or create cache entries
+      // In a production app, we might restrict this further, but for a "Dig" beta,
+      // we allow users to contribute to the shared cache.
+      allow create: if isAuthenticated() && isValidPOI(request.resource.data);
+      allow update: if isAuthenticated() && isValidPOI(request.resource.data);
+    }
+    
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "POI": {
+      "title": "POI",
+      "description": "Points of Interest cached from OSM and enriched by Gemini",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string", "enum": ["cafe", "restaurant", "bar"] },
+        "subcategory": { "type": "string" },
+        "hook_tag": { "type": "string" },
+        "district": { "type": "string" },
+        "city_code": { "type": "string" },
+        "coordinates": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "is_open_now": { "type": "boolean" },
+        "hours": { "type": "string" },
+        "payment": {
+          "type": "object",
+          "properties": {
+            "visa": { "type": "boolean" },
+            "cash": { "type": "boolean" },
+            "note": { "type": "string" }
+          }
+        },
+        "signature_items": { "type": "array", "items": { "type": "string" } },
+        "souvenirs": { "type": "array", "items": { "type": "object" } },
+        "why_worth_it": { "type": "string" },
+        "caveats": { "type": "array", "items": { "type": "string" } },
+        "flash_event": { "type": "object" },
+        "is_chain": { "type": "boolean" },
+        "source_links": { "type": "object" },
+        "last_updated": { "type": "string", "format": "date-time" },
+        "is_enriched": { "type": "boolean" }
+      },
+      "required": ["id", "name", "category", "coordinates"]
+    }
+  },
+  "firestore": {
+    "/pois/{poiId}": {
+      "schema": "POI",
+      "description": "Global cache of POIs"
+    }
+  }
+}

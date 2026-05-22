@@ -1,0 +1,5 @@
+{
+  "name": "Dig",
+  "description": "A decision tool for street explorers. Get structured facts about shops nearby to decide whether to enter in 3 seconds.",
+  "requestFramePermissions": ["geolocation"]
+}

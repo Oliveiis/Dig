@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&family=Syne:wght@700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-display: "Syne", sans-serif;
+  
+  --color-bg: #F8F9FA;
+  --color-surface: #FFFFFF;
+  --color-surface2: #F1F3F5;
+  --color-border: #E9ECEF;
+  --color-border2: #DEE2E6;
+  --color-accent: #000000;
+  --color-red-custom: #FF4D4D;
+  --color-blue-custom: #4D96FF;
+  --color-text: #1A1A1A;
+  --color-text2: #495057;
+  --color-text3: #ADB5BD;
+
+  /* App Specific Legacy Aliases */
+  --color-app-bg: #F8F9FA;
+  --color-app-surface: #FFFFFF;
+  --color-app-border: #E9ECEF;
+  --color-app-text: #1A1A1A;
+  --color-app-text2: #6C757D;
+  --color-app-text3: #ADB5BD;
+  --color-app-accent: #000000;
+  --color-app-red: #FF4D4D;
+  --color-app-cafe: #c8f04a;
+}
+
+@layer base {
+  body {
+    @apply bg-bg text-text font-sans antialiased selection:bg-accent selection:text-white overflow-hidden;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Leaflet Overrides */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #f0f0f0;
+}
+
+.leaflet-control-attribution {
+  display: none !important;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}
+
+.apple-blur {
+  @apply bg-white/80 backdrop-blur-2xl border border-black/5;
+}
+
+.ios-shadow {
+  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.05);
+}
+
+.ios-shadow-lg {
+  box-shadow: 0 12px 48px 0 rgba(0, 0, 0, 0.12);
+}
+
+.claude-tag {
+  @apply font-mono text-[10px] leading-tight tracking-wider uppercase px-2 py-1 rounded bg-black/5 border border-black/5 text-text2 font-bold;
+}
+
+.mobile-container {
+  @apply mx-auto w-full max-w-[430px] h-screen bg-bg relative overflow-hidden flex flex-col shadow-2xl;
+}

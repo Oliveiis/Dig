@@ -8,7 +8,7 @@
  */
 
 import { chromium } from 'playwright-core';
-import { upsertEnrichment, hasEnrichment } from './db.ts';
+import { upsertRawNotes, slugForPOI } from './db.ts';
 import fs from 'fs';
 import path from 'path';
 
@@ -67,45 +67,6 @@ async function searchNotes(keyword: string, page: any): Promise<NoteResult[]> {
   return notes;
 }
 
-function extractInsights(notes: NoteResult[]) {
-  const allText = notes.map(n => `${n.title} ${n.desc}`).join(' ');
-
-  const itemPatterns = [
-    /(?:必点|必吃|推荐|招牌|特色)[：:\s]*([^\s，,。！!？?]{2,10})/g,
-    /([^\s，,。！!？?]{2,8})(?:超好吃|很好吃|必须试|必试|强推|必点)/g,
-  ];
-  const items = new Set<string>();
-  for (const p of itemPatterns) {
-    for (const m of allText.matchAll(p)) {
-      const s = m[1].trim();
-      if (s.length >= 2 && s.length <= 10) items.add(s);
-    }
-  }
-
-  const caveatPatterns = [
-    /(?:注意|提醒|缺点|不足)[：:\s]*([^。！!？?\n]{5,25})/g,
-    /(?:仅限|只收|不接受)[现現]金/g,
-    /排[队隊][^\s，,。]{2,12}/g,
-  ];
-  const caveats = new Set<string>();
-  for (const p of caveatPatterns) {
-    for (const m of allText.matchAll(p)) caveats.add(m[0].trim().slice(0, 20));
-  }
-
-  const top = [...notes].sort((a, b) => b.likes - a.likes)[0];
-  const why = top ? (top.title.length > 10 ? top.title : top.desc).slice(0, 60) : null;
-  const totalLikes = notes.reduce((s, n) => s + n.likes, 0);
-
-  return {
-    why_worth_it: why,
-    signature_items: [...items].slice(0, 3),
-    caveats: [...caveats].slice(0, 2),
-    hook_tag: top?.title.split(/[，,！!]/)[0]?.slice(0, 12) ?? '',
-    mention_count: notes.length,
-    recommendation_count: Math.round(totalLikes / 100) * 100,
-  };
-}
-
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
 
 async function main() {
@@ -153,29 +114,19 @@ async function main() {
   }
 
   for (const poi of targets) {
-    if (hasEnrichment(poi.id)) {
-      console.log(`  ⏭  跳过 ${poi.name}（已有数据）`);
-      continue;
-    }
+    const id = poi.id?.startsWith('manual-') || poi.id?.startsWith('osm-') || poi.id?.startsWith('dig-')
+      ? poi.id
+      : slugForPOI(poi.name, poi.district);
 
     const keyword = poi.district ? `${poi.name} ${poi.district} 香港` : `${poi.name} 香港`;
     console.log(`  🔎 ${keyword}`);
 
     try {
       const notes = await searchNotes(keyword, page);
-      const insights = extractInsights(notes);
-
-      upsertEnrichment({
-        poi_id: poi.id,
-        name: poi.name,
-        district: poi.district,
-        ...insights,
-        source_url: `https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent(poi.name)}`,
-        crawled_at: new Date().toISOString(),
-      });
+      upsertRawNotes(id, { name: poi.name, district: poi.district }, 'xhs', notes);
 
       const status = notes.length > 0 ? `✅ ${notes.length} 篇` : '⚠️  无结果';
-      console.log(`     ${status}  单品: ${insights.signature_items.join(', ') || '无'}`);
+      console.log(`     ${status}`);
     } catch (err) {
       console.warn(`     ❌ 失败: ${err}`);
     }
@@ -184,7 +135,7 @@ async function main() {
   }
 
   await browser.close();
-  console.log('\n✅ 完成，数据已写入 data/dig.db');
+  console.log('\n✅ 完成。raw notes 已写入 data/dig.db。运行 `npx tsx scripts/summarize.ts` 让 DeepSeek 生成 hook。');
 }
 
 main();

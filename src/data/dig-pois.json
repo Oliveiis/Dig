@@ -1,0 +1,253 @@
+[
+  {
+    "id": "dig-46179f57",
+    "name": "Blue Coffee 藍瓶咖啡",
+    "category": "cafe",
+    "subcategory": "精品咖啡",
+    "hook_tag": "高分咖啡",
+    "district": "中環",
+    "city_code": "HKG",
+    "coordinates": {
+      "lat": 22.3193,
+      "lng": 114.1694
+    },
+    "distance_meters": 130,
+    "is_open_now": true,
+    "hours": "08:00-18:00，週二休息",
+    "payment": {
+      "visa": true,
+      "cash": true,
+      "note": "支援八達通 / NFC 支付"
+    },
+    "signature_items": [
+      "燕麥拿鐵",
+      "手沖",
+      "冷萃"
+    ],
+    "souvenirs": [
+      {
+        "name": "自家烘焙掛耳包（3入）",
+        "price_hkd": 68.0
+      },
+      {
+        "name": "品牌帆布袋",
+        "price_hkd": null
+      }
+    ],
+    "why_worth_it": "隱身於中環小巷的工業風咖啡店，自家烘焙豆子香氣逼人。手沖使用肯尼亞豆，酸質明亮。",
+    "caveats": [
+      "週末排隊約15分鐘",
+      "無座位，外帶為主"
+    ],
+    "flash_event": {
+      "label": "本週四：免費試飲新批次肯尼亞豆",
+      "expires_at": null
+    },
+    "is_chain": false,
+    "source_links": {
+      "google_maps": "https://www.google.com/maps/search/?api=1&query=22.3193,114.1694"
+    },
+    "recommendation_count": 128
+  },
+  {
+    "id": "dig-d2d1b4f7",
+    "name": "Cupping Room",
+    "category": "cafe",
+    "subcategory": "精品咖啡",
+    "hook_tag": "全港連鎖名店",
+    "district": "上環",
+    "city_code": "HKG",
+    "coordinates": {
+      "lat": 22.2855,
+      "lng": 114.152
+    },
+    "distance_meters": 450,
+    "is_open_now": true,
+    "hours": "09:00-19:00",
+    "payment": {
+      "visa": true,
+      "cash": false,
+      "note": "支援八達通 / NFC 支付"
+    },
+    "signature_items": [
+      "Ethiopia Yirgacheffe 手冲",
+      "Signature Flat White"
+    ],
+    "souvenirs": [
+      {
+        "name": "原產地豆子禮盒",
+        "price_hkd": 120
+      }
+    ],
+    "why_worth_it": "香港咖啡圈公認標杆，精品豆品質與國內一線城市有明顯差距，值得專程。",
+    "caveats": [
+      "手冲 HK$70+，價格偏高"
+    ],
+    "flash_event": {
+      "label": "本週四：免費試飲新批次肯尼亞豆",
+      "expires_at": "2025-01-16T23:59:00Z"
+    },
+    "is_chain": true,
+    "source_links": {
+      "google_maps": "https://www.google.com/maps/search/?api=1&query=22.2855,114.152"
+    },
+    "recommendation_count": 1800
+  },
+  {
+    "id": "dig-7f71a67e",
+    "name": "Lawry's The Prime Rib",
+    "category": "restaurant",
+    "subcategory": "西餐",
+    "hook_tag": "1938年創立",
+    "district": "銅鑼灣",
+    "city_code": "HKG",
+    "coordinates": {
+      "lat": 22.2804,
+      "lng": 114.184
+    },
+    "distance_meters": 850,
+    "is_open_now": true,
+    "hours": "12:00-22:30",
+    "payment": {
+      "visa": true,
+      "cash": false,
+      "note": "不收現金，僅限電子支付"
+    },
+    "signature_items": [
+      "Prime Rib 招牌肋眼",
+      "Yorkshire Pudding",
+      "Spinning Bowl Salad"
+    ],
+    "souvenirs": [],
+    "why_worth_it": "全球連鎖，但香港店保留了1938年洛杉磯創店的「站立切肉車」服務儀式，亞洲僅此一家。",
+    "caveats": [
+      "需提前訂座",
+      "人均 HK$600+"
+    ],
+    "is_chain": true,
+    "source_links": {
+      "google_maps": "https://www.google.com/maps/search/?api=1&query=22.2804,114.184"
+    },
+    "recommendation_count": 3200
+  },
+  {
+    "id": "dig-0ec58c1b",
+    "name": "Ho Lee Fook",
+    "category": "restaurant",
+    "subcategory": "粵式創意",
+    "hook_tag": "米其林推薦必訪",
+    "district": "中環",
+    "city_code": "HKG",
+    "coordinates": {
+      "lat": 22.2822,
+      "lng": 114.1551
+    },
+    "distance_meters": 520,
+    "is_open_now": true,
+    "hours": "12:00-15:00，18:00-00:00",
+    "payment": {
+      "visa": true,
+      "cash": true,
+      "note": null
+    },
+    "signature_items": [
+      "叉燒配腐乳醬",
+      "避風塘炒龍蝦",
+      "冰火菠蘿包"
+    ],
+    "souvenirs": [],
+    "why_worth_it": "米其林上榜，粵菜現代演繹做到香港前列，叉燒被多篇自來水帖列為「必吃」。",
+    "caveats": [
+      "需提前訂座",
+      "人均 HK$400+"
+    ],
+    "is_chain": false,
+    "source_links": {
+      "google_maps": "https://www.google.com/maps/search/?api=1&query=22.2822,114.1551"
+    },
+    "recommendation_count": 4500
+  },
+  {
+    "id": "dig-16cde996",
+    "name": "太平館餐廳",
+    "category": "restaurant",
+    "subcategory": "粵式創意",
+    "hook_tag": "1860年創立",
+    "district": "西營盤",
+    "city_code": "HKG",
+    "coordinates": {
+      "lat": 22.2847,
+      "lng": 114.131
+    },
+    "distance_meters": 200,
+    "is_open_now": true,
+    "hours": "11:30-22:30",
+    "payment": {
+      "visa": false,
+      "cash": true,
+      "note": "僅收現金"
+    },
+    "signature_items": [
+      "瑞士汁雞翼",
+      "焗葡國雞",
+      "瑞士汁牛腩"
+    ],
+    "souvenirs": [
+      {
+        "name": "外賣瑞士汁（樽裝）",
+        "price_hkd": 45
+      }
+    ],
+    "why_worth_it": "1860年創立，港式西餐是香港獨有品類，瑞士汁雞翼無法在其他城市複刻。",
+    "caveats": [
+      "只收現金",
+      "高峰期等位30分鐘+"
+    ],
+    "is_chain": false,
+    "source_links": {
+      "google_maps": "https://www.google.com/maps/search/?api=1&query=22.2847,114.131"
+    },
+    "recommendation_count": 680
+  },
+  {
+    "id": "dig-b4c8ae11",
+    "name": "The Old Man",
+    "category": "bar",
+    "subcategory": "調酒",
+    "hook_tag": "亞洲50最佳",
+    "district": "中環",
+    "city_code": "HKG",
+    "coordinates": {
+      "lat": 22.2831,
+      "lng": 114.154
+    },
+    "distance_meters": 600,
+    "is_open_now": true,
+    "hours": "17:00-00:00，週日休息",
+    "payment": {
+      "visa": true,
+      "cash": true,
+      "note": null
+    },
+    "signature_items": [
+      "Old Man Negroni",
+      "Hemingway Daiquiri",
+      "本季限定特調"
+    ],
+    "souvenirs": [],
+    "why_worth_it": "亞洲50最佳酒吧常客，以海明威為主題每季換單，調酒師水準在香港屬頂尖。",
+    "caveats": [
+      "無訂座，先到先得",
+      "高峰期等位45分鐘"
+    ],
+    "flash_event": {
+      "label": "本週：新季酒單首週半價試飲",
+      "expires_at": "2025-01-19T23:59:00Z"
+    },
+    "is_chain": false,
+    "source_links": {
+      "google_maps": "https://www.google.com/maps/search/?api=1&query=22.2831,114.154"
+    },
+    "recommendation_count": 2800
+  }
+]

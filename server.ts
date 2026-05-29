@@ -1,6 +1,7 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { config } from "dotenv";
 config();
@@ -362,6 +363,22 @@ ${reviewText ? `- 用户评论摘录：\n${reviewText}` : ""}
         google_maps: gmaps ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(poi.name + ' Hong Kong')}` : undefined,
       },
     });
+  });
+
+  // Pre-enriched POIs endpoint — serves Food Crawler output
+  // This bypasses the slow real-time SerpApi + DeepSeek pipeline
+  app.get("/api/pre-enriched", async (_req, res) => {
+    try {
+      const dataPath = path.join(__dirname, "src", "data", "dig-pois.json");
+      if (fs.existsSync(dataPath)) {
+        const raw = fs.readFileSync(dataPath, "utf-8");
+        res.json(JSON.parse(raw));
+      } else {
+        res.json([]);
+      }
+    } catch {
+      res.json([]);
+    }
   });
 
   // API routes

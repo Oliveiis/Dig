@@ -13,8 +13,58 @@ interface OSMResponse {
   elements: OSMElement[];
 }
 
+const OSM_CACHE_KEY = 'dig:osm-grid:v1';
+const OSM_TTL_MS = 24 * 60 * 60 * 1000;
+const GRID_DEG = 0.0025; // ~280m at HK latitude
+
+interface OSMCacheEntry {
+  pois: POI[];
+  fetched_at: number;
+}
+
+function gridKey(lat: number, lng: number, radiusMeters: number): string {
+  const gLat = Math.round(lat / GRID_DEG) * GRID_DEG;
+  const gLng = Math.round(lng / GRID_DEG) * GRID_DEG;
+  const rBucket = Math.round(radiusMeters / 200) * 200;
+  return `${gLat.toFixed(4)},${gLng.toFixed(4)},r${rBucket}`;
+}
+
+function readOSMCache(): Record<string, OSMCacheEntry> {
+  try {
+    const raw = localStorage.getItem(OSM_CACHE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeOSMCache(cache: Record<string, OSMCacheEntry>) {
+  try { localStorage.setItem(OSM_CACHE_KEY, JSON.stringify(cache)); } catch {}
+}
+
+function getCached(lat: number, lng: number, radiusMeters: number, allowStale = false): POI[] | null {
+  const cache = readOSMCache();
+  const key = gridKey(lat, lng, radiusMeters);
+  const entry = cache[key];
+  if (!entry) return null;
+  if (!allowStale && Date.now() - entry.fetched_at > OSM_TTL_MS) return null;
+  return entry.pois;
+}
+
+function setCached(lat: number, lng: number, radiusMeters: number, pois: POI[]) {
+  const cache = readOSMCache();
+  cache[gridKey(lat, lng, radiusMeters)] = { pois, fetched_at: Date.now() };
+  writeOSMCache(cache);
+}
+
 export async function fetchPOIsNear(lat: number, lng: number, radiusMeters: number = 1000): Promise<POI[]> {
-  // Overpass query for cafes, restaurants, and bars
+  // Fresh cache hit — return immediately, no network.
+  const fresh = getCached(lat, lng, radiusMeters, false);
+  if (fresh && fresh.length > 0) {
+    console.log(`[osm] cache hit (fresh): ${fresh.length} POIs`);
+    return fresh;
+  }
+
   const query = `
     [out:json][timeout:25];
     (
@@ -28,20 +78,23 @@ export async function fetchPOIsNear(lat: number, lng: number, radiusMeters: numb
   try {
     const response = await fetch('/api/osm', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
     });
 
-    if (!response.ok) {
-      throw new Error(`OSM fetch failed: ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error(`OSM fetch failed: ${response.statusText}`);
 
     const data: OSMResponse = await response.json();
-    return mapOSMToPOI(data.elements);
+    const pois = mapOSMToPOI(data.elements);
+    if (pois.length > 0) setCached(lat, lng, radiusMeters, pois);
+    return pois;
   } catch (error) {
-    console.error('Error fetching POIs from OSM:', error);
+    console.warn('[osm] live fetch failed, falling back to stale cache:', error);
+    const stale = getCached(lat, lng, radiusMeters, true);
+    if (stale && stale.length > 0) {
+      console.log(`[osm] cache hit (stale): ${stale.length} POIs`);
+      return stale;
+    }
     return [];
   }
 }
@@ -56,8 +109,9 @@ function mapOSMToPOI(elements: OSMElement[]): POI[] {
     if (tags.amenity === 'cafe') category = 'cafe';
     else if (tags.amenity === 'bar') category = 'bar';
 
-    // Map subcategory from cuisine or amenity
-    const subcategory = tags.cuisine || tags.amenity || '未知';
+    // OSM cuisine can be semicolon-joined ("coffee_shop;pizza;burger") — take first token only.
+    const rawSub = tags.cuisine || tags.amenity || '未知';
+    const subcategory = rawSub.split(';')[0].trim() || '未知';
 
     return {
       id: `osm-${el.id}`,

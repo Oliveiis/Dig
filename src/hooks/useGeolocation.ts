@@ -2,17 +2,17 @@ import { useEffect } from 'react';
 import { useLocationStore } from '../store/useLocationStore';
 
 export function useGeolocation() {
-  const { setCoords, setGpsReady } = useLocationStore();
+  const { setCoords, setGpsFallback } = useLocationStore();
 
   useEffect(() => {
     if (!navigator.geolocation) {
-      setGpsReady(); // 不支持定位，直接用 fallback
+      setGpsFallback();
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       pos => setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => setGpsReady(), // 拒绝或失败，fallback 到西营盘
+      () => setGpsFallback(),
       { enableHighAccuracy: true, timeout: 10000 }
     );
 

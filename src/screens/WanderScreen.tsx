@@ -1,12 +1,12 @@
 import { MapContainer } from '../components/map/MapContainer';
 import { CategoryFilterChips } from '../components/wander/CategoryFilterChips';
-import { BottomSheet } from '../components/common/BottomSheet';
 import { FactCard } from '../components/cards/FactCard';
 import { usePOIStore } from '../store/usePOIStore';
 import { useLocationStore } from '../store/useLocationStore';
 import { ChevronDown, Bookmark } from 'lucide-react';
 import { ProximityAlertBanner } from '../components/wander/ProximityAlertBanner';
 import { useProximityAlert } from '../hooks/useProximityAlert';
+import { motion, AnimatePresence, PanInfo } from 'motion/react';
 import { useState } from 'react';
 import { BookmarkListSheet } from '../components/bookmark/BookmarkListSheet';
 import { DistrictSelector } from '../components/map/DistrictSelector';
@@ -20,6 +20,11 @@ export function WanderScreen() {
   const [isDistrictSelectorOpen, setIsDistrictSelectorOpen] = useState(false);
   const [isCheckinOpen, setIsCheckinOpen] = useState(false);
   const [isFavouriteOpen, setIsFavouriteOpen] = useState(false);
+  const [isSheetDragging, setIsSheetDragging] = useState(false);
+
+  const handleSheetDragEnd = (_: any, info: PanInfo) => {
+    if (info.offset.y > 100 || info.velocity.y > 500) setShowFullCard(false);
+  };
 
   useProximityAlert();
 
@@ -82,16 +87,47 @@ export function WanderScreen() {
       <CategoryFilterChips />
 
       {/* Fact Card Bottom Sheet */}
-      <BottomSheet isOpen={showFullCard} onClose={() => setShowFullCard(false)}>
-        {selectedPOI && (
-          <FactCard
-            poi={selectedPOI}
-            onClose={() => setShowFullCard(false)}
-            onCheckin={() => { setIsCheckinOpen(true); }}
-            onFavourite={() => { setIsFavouriteOpen(true); }}
-          />
+      <AnimatePresence>
+        {showFullCard && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowFullCard(false)}
+              className="fixed inset-0 bg-black/20 backdrop-blur-[2px]"
+              style={{ zIndex: 9998 }}
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={0.2}
+              onDragStart={() => setIsSheetDragging(true)}
+              onDragEnd={handleSheetDragEnd}
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[24px] shadow-2xl overflow-hidden flex flex-col"
+              style={{ maxHeight: '85vh', zIndex: 9999 }}
+            >
+              <div className="w-full flex justify-center py-3 cursor-grab active:cursor-grabbing">
+                <div className="w-12 h-1.5 bg-border2 rounded-full" />
+              </div>
+              <div className="flex-1 overflow-y-auto px-6 pb-12">
+                {selectedPOI && (
+                  <FactCard
+                    poi={selectedPOI}
+                    onClose={() => setShowFullCard(false)}
+                    onCheckin={() => { setIsCheckinOpen(true); }}
+                    onFavourite={() => { setIsFavouriteOpen(true); }}
+                  />
+                )}
+              </div>
+            </motion.div>
+          </>
         )}
-      </BottomSheet>
+      </AnimatePresence>
     </div>
   );
 }

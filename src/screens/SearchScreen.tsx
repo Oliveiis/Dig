@@ -4,9 +4,8 @@ import { usePOIStore } from '../store/usePOIStore';
 import { useLocationStore } from '../store/useLocationStore';
 import { haversineMeters, formatDistance } from '../utils/distance';
 import { CATEGORY_COLOR, getSubcategoryIcon } from '../utils/categoryConfig';
-import { BottomSheet } from '../components/common/BottomSheet';
 import { FactCard } from '../components/cards/FactCard';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, PanInfo } from 'motion/react';
 import { POICategory } from '../types/poi';
 
 export const SearchScreen: React.FC = () => {
@@ -15,6 +14,11 @@ export const SearchScreen: React.FC = () => {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | POICategory>('all');
   const [selectedPOI, setSelectedPOI] = useState<any>(null);
+  const [isSheetDragging, setIsSheetDragging] = useState(false);
+
+  const handleSheetDragEnd = (_: any, info: PanInfo) => {
+    if (info.offset.y > 100 || info.velocity.y > 500) setSelectedPOI(null);
+  };
 
   const categories: { id: 'all' | POICategory; label: string }[] = [
     { id: 'all', label: '全部' },
@@ -148,11 +152,42 @@ export const SearchScreen: React.FC = () => {
       </div>
 
       {/* Detail View */}
-      <BottomSheet isOpen={!!selectedPOI} onClose={() => setSelectedPOI(null)}>
-        <div className="px-6 pb-10">
-          {selectedPOI && <FactCard poi={selectedPOI} onClose={() => setSelectedPOI(null)} />}
-        </div>
-      </BottomSheet>
+      <AnimatePresence>
+        {!!selectedPOI && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedPOI(null)}
+              className="fixed inset-0 bg-black/20 backdrop-blur-[2px]"
+              style={{ zIndex: 9998 }}
+            />
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={0.2}
+              onDragStart={() => setIsSheetDragging(true)}
+              onDragEnd={handleSheetDragEnd}
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[24px] shadow-2xl overflow-hidden flex flex-col"
+              style={{ maxHeight: '85vh', zIndex: 9999 }}
+            >
+              <div className="w-full flex justify-center py-3 cursor-grab active:cursor-grabbing">
+                <div className="w-12 h-1.5 bg-border2 rounded-full" />
+              </div>
+              <div className="flex-1 overflow-y-auto px-6 pb-12">
+                <div className="px-6 pb-10">
+                  {selectedPOI && <FactCard poi={selectedPOI} onClose={() => setSelectedPOI(null)} />}
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

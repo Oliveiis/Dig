@@ -32,7 +32,7 @@ export const IconButtons: React.FC<IconButtonProps> = ({ poi, onFavourite, onBoo
       <button
         onClick={hasCheckedIn ? onFavourite : undefined}
         disabled={!hasCheckedIn}
-        title={!hasCheckedIn ? '先打個點再喜愛' : undefined}
+        title={!hasCheckedIn ? '先打個卡再喜愛' : undefined}
         className="w-8 h-8 rounded-full border flex items-center justify-center text-[14px] transition-all"
         style={{
           background: isFavourited ? '#fff0f0' : '#f5f5f5',

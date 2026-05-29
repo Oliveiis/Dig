@@ -44,13 +44,13 @@ export function QuickCheckinModal({ poi, isOpen, onClose }: QuickCheckinModalPro
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 z-[3000]"
+            className="fixed inset-0 bg-black/60 z-[10000]"
           />
           <motion.div
             initial={{ scale: 0.9, opacity: 0, y: 50 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 50 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[360px] bg-white rounded-[32px] p-8 z-[3100] shadow-2xl"
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] max-w-[360px] bg-white rounded-[32px] p-8 z-[10001] shadow-2xl"
           >
             <div className="flex flex-col items-center gap-6">
               <div className="w-16 h-16 rounded-full bg-app-accent/10 flex items-center justify-center text-app-accent">
@@ -58,7 +58,7 @@ export function QuickCheckinModal({ poi, isOpen, onClose }: QuickCheckinModalPro
               </div>
               
               <div className="text-center">
-                <h3 className="text-xl font-bold font-display text-app-text">打個點</h3>
+                <h3 className="text-xl font-bold font-display text-app-text">打個卡</h3>
                 <p className="text-sm text-app-text2 mt-1">{poi.name}</p>
               </div>
 

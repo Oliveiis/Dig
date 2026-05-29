@@ -37,7 +37,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({ poi, onCheckin }) 
         onClick={onCheckin}
         className="w-full font-mono text-[10px] font-bold py-[11px] rounded-[8px] bg-[#f5f5f5] text-[#1a1a1a] border border-[#e0e0e0] transition-opacity active:opacity-80"
       >
-        ◎ 打個點
+        ◎ 打個卡
       </button>
     </div>
   );

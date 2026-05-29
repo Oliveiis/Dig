@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { POI } from '../../types/poi';
 import { FactCardContent } from './FactCardContent';
@@ -14,6 +14,7 @@ export const FactCard: React.FC<FactCardProps> = ({ poi, onClose, onCheckin, onF
   const [dragY, setDragY] = useState(0);
   const [exiting, setExiting] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const toastTimeoutRef = useRef<number | null>(null);
   const startYRef = useRef<number | null>(null);
 
   const dismiss = () => {
@@ -41,9 +42,24 @@ export const FactCard: React.FC<FactCardProps> = ({ poi, onClose, onCheckin, onF
   };
 
   const handleBookmarkToast = (msg: string) => {
+    if (toastTimeoutRef.current) {
+      window.clearTimeout(toastTimeoutRef.current);
+      toastTimeoutRef.current = null;
+    }
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 2000);
+    toastTimeoutRef.current = window.setTimeout(() => {
+      setToastMsg(null);
+      toastTimeoutRef.current = null;
+    }, 3000);
   };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        window.clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return createPortal(
     <>
@@ -91,7 +107,7 @@ export const FactCard: React.FC<FactCardProps> = ({ poi, onClose, onCheckin, onF
       {/* Toast */}
       {toastMsg && (
         <div
-          className="fixed bottom-[calc(90px+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 bg-[#1a1a1a] text-white px-5 py-2.5 rounded-full whitespace-nowrap"
+          className="fixed bottom-[calc(90px+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 bg-white text-app-text border border-app-border shadow-lg px-5 py-2.5 rounded-full whitespace-nowrap"
           style={{ zIndex: 10000 }}
         >
           <span className="font-mono text-[11px]">{toastMsg}</span>

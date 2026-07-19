@@ -16,7 +16,10 @@ geolocation → OSM POI 拉取 → 合并 preEnriched → 前台立即渲染 fal
 2. **地图实际为 pigeon-maps**(非 README 所写的 Google Maps),`src/components/map/MapContainer.tsx`(13KB)是首屏必加载的大块,无法延迟。
 3. **富化链路有预热**:`usePOIStore.refreshPOIs` 后台预热点距 viewport 中心最近的 12 个 POI,首屏 POI 非空白等待,而是先出 fallback 再增量 patch。因此富化串行问题不在本轮范围。
 4. **缓存分层已存在**:`poiCacheService` 分 stable(hook_tag/why_worth_it 等永久)与 timed(is_open_now/hours,24h)双层。
-5. **人设卡硬编码**:`personaService.generatePersona` 的 attributes 数值(82/68/60/42 等)全部写死,但 `utils/tasteProfile.ts` 已能从 favourites+checkins+allPOIs 派生真实 `TasteProfile`,`useFavouriteStore.getTasteProfile()` 已可用。真实计算能力已存在,人设卡却没用它。
+5. **两套 persona 系统并存**:
+   - `personaService.generatePersona` 返回 `Persona`(title/emoji/description/attributes/skills),attributes 数值全部硬编码;**被 `PersonaPanel.tsx` 实际消费**。
+   - `utils/tasteProfile.ts` 的 `deriveTasteProfile` 返回 `TasteProfile`,从 favourites+checkins+allPOIs 派生真实数据(regret_rate、top_district、top_categories、top_skus、price_tendency 等),但 **未被 PersonaPanel 使用**。
+   - 真实计算能力已存在,人设卡却没用它。
 
 ## 目标
 
@@ -30,6 +33,7 @@ geolocation → OSM POI 拉取 → 合并 preEnriched → 前台立即渲染 fal
 - 移除冗余的 Gemini / 地图 SDK 依赖
 - 合并 `server.ts` 与 `api/*.ts` 的重复路由实现
 - 路由级懒加载 / prefetch 策略 / 引入 SWR 等缓存框架
+- 废弃 `personaService` 或改动 `PersonaPanel.tsx`(见第 3 节决策)
 
 以上留待后续架构级轮次。
 
@@ -59,25 +63,31 @@ geolocation → OSM POI 拉取 → 合并 preEnriched → 前台立即渲染 fal
 
 **风险**:营业状态可能短暂显示旧值,但远比触发全量富化划算;不触碰 stable 路径,回归风险低。
 
-### 3. 人设卡数据化 — 复用 tasteProfile
+### 3. 人设卡数据化 — personaService 包 tasteProfile
 
-**问题**:persona attributes 数值硬编码,与已存在的真实计算能力脱节。
+**决策**:存在两套 persona 系统(见背景 5)。本轮选择 **personaService 内部调用 `deriveTasteProfile`**,用其真实聚合数据填充 `Persona` 的 attributes / skills,保持 `Persona` 接口与 `PersonaPanel.tsx` 完全不变。不废弃 `personaService`、不改 `PersonaPanel`。
 
 **改动**:
 
-- `personaService.generatePersona` 改为接收 `TasteProfile` 入参(或在内部调 `deriveTasteProfile`),将 `attributes` 数值替换为 TasteProfile 的真实聚合值,归一化到 0-100。
-- 属性映射:TasteProfile 的品类 / 价格 / 地区等偏好维度,映射到 persona 现有 attributes 语义(口味 / 消费 / 店型 / 冒险感 等)。若某 attribute 在 TasteProfile 无对应维度,保留合理默认值而非编造。
-- `skills` 数组:从 checkins / favourites 的真实地区分布、品类计数计算(如"西營盤最常出沒""手冲 ×4"),替换写死值。
+- `personaService.generatePersona` 签名扩展:在现有 `(checkins, favourites)` 基础上增加 `allPOIs: POI[]` 入参,内部调 `deriveTasteProfile(favourites, checkins, allPOIs)` 拿到 `TasteProfile`。
+- `attributes` 数值:从 TasteProfile 的真实字段映射,替换硬编码。映射规则:
+  - "踩雷率"维度 → `100 - regret_rate * 3`(与 tasteProfile 现有公式一致),映射到对应人设的某个 attribute
+  - "店型"→ 基于 `is_chain` 聚合的非连锁占比
+  - "消費"→ 基于 `price_tendency` 映射(worth_it/bargain 偏低值,expensive 偏高值)
+  - 缺口属性(无对应真实维度)保留合理默认值,不编造
+- `skills` 数组:从 `top_categories` / `top_skus` / `top_district` 派生,如 `${top_category.label} ×${top_category.count}`、`${top_district}最常出沒`、`${top_sku.name} ×${top_sku.count}`,替换写死值。
 - 人设四分类(咖啡 / 酒吧 / 美食 / 漫游)判定逻辑保留(基于 topCategory),仅解锁后的数值变真实。
 - **不触碰** 人设文案(title / emoji / description),保持现有人工版本。
+- **不触碰** `PersonaPanel.tsx`、`tasteProfile.ts` 只读复用。
+- 调用方(`JournalScreen.tsx` 等)需补传 `allPOIs`,从 `usePOIStore` 取。
 
-**风险**:复用已接入 store 的 tasteProfile 属低风险;主要工作是字段语义对齐,缺口属性用默认值兜底。
+**风险**:复用已存在的 tasteProfile 属低风险;主要工作是字段语义对齐与调用方传参补全,缺口属性用默认值兜底。
 
 ## 测试策略
 
 - **代码分割**:本地 `npm run build` 后检查 chunk 分裂情况,确认 Search/Journal/Settings 与 modal 独立成 chunk;`npm run dev` 手动切换 tab、打开各 modal,验证 fallback 与功能正常。
 - **缓存修正**:构造一个 stable 已富化、timed 过期的 POI,验证再次进入不触发 `/api/dig` 请求(可通过 Network 面板确认);验证 stable 字段仍正确显示。
-- **人设数据化**:在不同 checkins/favourites 数据下验证 persona attributes 数值变化、skills 反映真实分布;验证文案部分未变。
+- **人设数据化**:在不同 checkins/favourites 数据下验证 persona attributes 数值变化、skills 反映真实分布;验证文案部分未变;验证 PersonaPanel 正常渲染。
 - 全程遵守移动优先约束(430px `.mobile-container`)与高对比度风格(见 AGENTS.md)。
 
 ## 涉及文件
@@ -85,5 +95,6 @@ geolocation → OSM POI 拉取 → 合并 preEnriched → 前台立即渲染 fal
 - `src/App.tsx` — 屏幕懒加载
 - `src/screens/WanderScreen.tsx` — modal 懒加载
 - `src/services/poiCacheService.ts` — timed 过期分支修正
-- `src/services/personaService.ts` — 接入 tasteProfile,数据化 attributes / skills
-- 可能涉及:`src/utils/tasteProfile.ts`(只读复用)、`src/components/journal/PersonaPanel.tsx`(确认调用方传参)
+- `src/services/personaService.ts` — 内部调 deriveTasteProfile,数据化 attributes / skills
+- `src/screens/JournalScreen.tsx`(或 generatePersona 的实际调用方)— 补传 allPOIs
+- 只读复用:`src/utils/tasteProfile.ts`、`src/types/poi.ts`

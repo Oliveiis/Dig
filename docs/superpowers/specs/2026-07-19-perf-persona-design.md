@@ -54,7 +54,7 @@ geolocation → OSM POI 拉取 → 合并 preEnriched → 前台立即渲染 fal
 **改动**:
 
 - 当 `cached.is_enriched && cached.stable.hook_tag` 成立、仅 timed 过期时,**跳过** `digForPOIDetails` 全量调用。
-- timed 过期处理:显示 stale 值或置空,不触发全量富化;等下次用户主动 dig 该 POI 时再补全。
+- timed 过期处理:**保留显示 stale 值**(不置空),避免营业状态突然消失让用户困惑;不触发全量富化,等下次用户主动 dig 该 POI 时再补全。
 - stable 缓存逻辑不动。
 
 **风险**:营业状态可能短暂显示旧值,但远比触发全量富化划算;不触碰 stable 路径,回归风险低。

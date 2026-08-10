@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bookmark, X, MapPin, ChevronRight } from 'lucide-react';
+import { Bookmark, X, MapPin, ChevronRight, BellRing } from 'lucide-react';
 import { useBookmarkStore } from '../../store/useBookmarkStore';
 import { usePOIStore } from '../../store/usePOIStore';
 import { motion, AnimatePresence, PanInfo } from 'motion/react';
@@ -24,7 +24,7 @@ export function BookmarkListSheet({ isOpen, onClose }: BookmarkListSheetProps) {
     onClose();
   };
 
-  const [isDragging, setIsDragging] = useState(false);
+  const [, setIsDragging] = useState(false);
 
   const handleDragEnd = (_: any, info: PanInfo) => {
     if (info.offset.y > 100 || info.velocity.y > 500) onClose();
@@ -39,8 +39,7 @@ export function BookmarkListSheet({ isOpen, onClose }: BookmarkListSheetProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/20 backdrop-blur-[2px]"
-            style={{ zIndex: 9998 }}
+            className="fixed inset-0 z-[70] bg-[#18323A]/18"
           />
           <motion.div
             initial={{ y: '100%' }}
@@ -52,18 +51,20 @@ export function BookmarkListSheet({ isOpen, onClose }: BookmarkListSheetProps) {
             dragElastic={0.2}
             onDragStart={() => setIsDragging(true)}
             onDragEnd={handleDragEnd}
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[24px] shadow-2xl overflow-hidden flex flex-col"
-            style={{ maxHeight: '85vh', zIndex: 9999 }}
+            className="fixed bottom-0 left-1/2 z-[80] flex max-h-[78dvh] w-full max-w-[430px] -translate-x-1/2 flex-col overflow-hidden rounded-t-2xl bg-white shadow-[0_-6px_18px_rgba(24,50,58,0.16)]"
           >
             <div className="w-full flex justify-center py-3 cursor-grab active:cursor-grabbing">
-              <div className="w-12 h-1.5 bg-border2 rounded-full" />
+              <div className="h-1 w-10 rounded-full bg-border2" />
             </div>
             <div className="flex-1 overflow-y-auto px-6 pb-12">
               <div className="flex flex-col gap-6">
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <Bookmark size={20} className="text-app-accent" fill="currentColor" />
-                    <h2 className="text-xl font-bold text-app-text font-display">待去清單</h2>
+                    <div>
+                      <h2 className="text-[19px] font-bold text-app-text">想去的地方</h2>
+                      <p className="mt-0.5 text-[11px] text-app-text3">接近 500 公尺時提醒你</p>
+                    </div>
                   </div>
                   <button 
                     onClick={onClose}
@@ -84,17 +85,14 @@ export function BookmarkListSheet({ isOpen, onClose }: BookmarkListSheetProps) {
                       <button
                         key={poi.id}
                         onClick={() => handlePOIClick(poi)}
-                        className="flex items-center justify-between p-4 rounded-2xl bg-app-surface border border-app-border active:scale-[0.98] transition-transform text-left"
+                        className="flex min-h-[82px] items-center justify-between gap-3 rounded-xl bg-app-surface2 p-3 text-left transition-transform active:scale-[0.98]"
                       >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-app-accent/10 flex items-center justify-center text-app-accent">
-                            <MapPin size={20} />
-                          </div>
+                        <div className="flex min-w-0 items-center gap-3">
+                          {poi.photos?.[0] ? <img src={poi.photos[0].url} alt={poi.photos[0].alt} className="h-14 w-14 shrink-0 rounded-lg object-cover" /> : <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-app-accent"><MapPin size={20} /></div>}
                           <div>
-                            <h3 className="font-bold text-app-text">{poi.name}</h3>
-                            <p className="text-[10px] font-mono text-app-text3 uppercase tracking-wider mt-0.5">
-                              {poi.district} · {new Date(bookmarked_at).toLocaleDateString()}
-                            </p>
+                            <h3 className="truncate text-[13px] font-bold text-app-text">{poi.name}</h3>
+                            <p className="mt-1 line-clamp-1 text-[11px] text-app-text2">{poi.decision?.headline || poi.subcategory}</p>
+                            <p className="mt-1 flex items-center gap-1 text-[9px] font-medium text-app-accent"><BellRing size={10} /> 到店提醒已開啟 · {new Date(bookmarked_at).toLocaleDateString()}</p>
                           </div>
                         </div>
                         <ChevronRight size={18} className="text-app-text3" />

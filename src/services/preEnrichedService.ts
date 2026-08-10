@@ -7,6 +7,7 @@
  * 数据来源: hk-food-crawler/output/ → convert_to_dig.py → dig-pois.json
  */
 import { POI } from '../types/poi';
+import { HK_ISLAND_MVP_POIS } from '../data/hk-island-mvp';
 
 let preEnrichedPOIs: POI[] | null = null;
 let isLoading = false;
@@ -39,8 +40,7 @@ export async function loadPreEnrichedPOIs(): Promise<POI[]> {
 
     // 兜底：从静态 JSON 文件导入
     try {
-      const module = await import('../data/dig-pois.json');
-      preEnrichedPOIs = validatePOIs(module.default || module);
+      preEnrichedPOIs = validatePOIs(HK_ISLAND_MVP_POIS);
       console.log(`[preEnriched] Loaded ${preEnrichedPOIs.length} POIs from static file`);
     } catch (e) {
       console.warn('[preEnriched] Static import failed, pre-enriched data unavailable');

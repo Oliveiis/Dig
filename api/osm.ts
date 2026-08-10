@@ -25,88 +25,46 @@ export default async function handler(
     return res.status(400).json({ error: "Query is required" });
   }
 
-  // Shuffle instances to distribute load
-  const shuffledInstances = [...OVERPASS_INSTANCES].sort(
-    () => Math.random() - 0.5
-  );
+  const candidates = [...OVERPASS_INSTANCES]
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 4);
+  const controllers = candidates.map(() => new AbortController());
 
-  for (const instanceUrl of shuffledInstances) {
-    let attempts = 0;
-    const maxAttempts = 2;
+  const requests = candidates.map(async (instanceUrl, index) => {
+    const controller = controllers[index];
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(instanceUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "application/json",
+          "User-Agent": "DigStreetExplorer/1.0",
+        },
+        body: `data=${encodeURIComponent(query)}`,
+        signal: controller.signal,
+      });
 
-    while (attempts < maxAttempts) {
-      attempts++;
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-        const response = await fetch(instanceUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            Accept: "application/json",
-            "User-Agent": "DigStreetExplorer/1.0",
-          },
-          body: `data=${encodeURIComponent(query)}`,
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-          console.warn(
-            `Overpass instance ${instanceUrl} failed with status ${response.status} (Attempt ${attempts}/${maxAttempts})`
-          );
-          if (
-            response.status === 504 ||
-            response.status === 429 ||
-            response.status === 502 ||
-            response.status === 503
-          ) {
-            await new Promise((resolve) =>
-              setTimeout(resolve, 1500 * attempts)
-            );
-            continue;
-          }
-          break;
-        }
-
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          console.warn(
-            `Overpass instance ${instanceUrl} returned non-JSON content: ${contentType}`
-          );
-          break;
-        }
-
-        const text = await response.text();
-        try {
-          const data = JSON.parse(text);
-          return res.json(data);
-        } catch (parseError) {
-          console.error(
-            `Failed to parse JSON from ${instanceUrl}:`,
-            text.substring(0, 100)
-          );
-          break;
-        }
-      } catch (error: any) {
-        if (error.name === "AbortError") {
-          console.warn(
-            `Overpass instance ${instanceUrl} timed out (Attempt ${attempts}/${maxAttempts})`
-          );
-          continue;
-        } else {
-          console.error(
-            `Error fetching from OSM instance ${instanceUrl}:`,
-            error.message || error
-          );
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          continue;
-        }
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error(`Unexpected content type: ${contentType || "unknown"}`);
       }
+      return await response.json();
+    } finally {
+      clearTimeout(timeoutId);
     }
-  }
+  });
 
-  res.status(502).json({ error: "All Overpass instances failed or timed out" });
+  try {
+    const data = await Promise.any(requests);
+    controllers.forEach((controller) => controller.abort());
+    return res.json(data);
+  } catch (error) {
+    controllers.forEach((controller) => controller.abort());
+    console.warn("All raced Overpass instances failed:", error);
+    return res.status(502).json({
+      error: "All Overpass instances failed or timed out",
+    });
+  }
 }

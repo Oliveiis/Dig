@@ -19,13 +19,18 @@ import {
   Salad,
   IceCream,
   GlassWater,
+  ShoppingBag,
+  Sparkles,
 } from 'lucide-react';
 import { POICategory } from '../types/poi';
 
 export const CATEGORY_COLOR: Record<POICategory, string> = {
-  cafe:       '#c8f04a',
-  restaurant: '#4da6ff',
-  bar:        '#ff4d4d',
+  cafe:       '#E7B24C',
+  restaurant: '#5D8EC7',
+  bar:        '#DD7770',
+  bakery:     '#D8926B',
+  shop:       '#7B9C8D',
+  experience: '#8B83B8',
 };
 
 // 中文 subcategory
@@ -129,5 +134,66 @@ export function getSubcategoryIcon(sub: string): React.ElementType {
   return Utensils;
 }
 
-export const ALLOWED_CATEGORIES: POICategory[] = ['cafe', 'restaurant', 'bar'];
+export const ALLOWED_CATEGORIES: POICategory[] = ['cafe', 'restaurant', 'bar', 'bakery', 'shop', 'experience'];
 
+export const CATEGORY_LABEL: Record<POICategory, string> = {
+  cafe: '咖啡',
+  restaurant: '餐廳',
+  bar: '酒吧',
+  bakery: '烘焙',
+  shop: '逛店',
+  experience: '體驗',
+};
+
+export function getCategoryIcon(category: POICategory): React.ElementType {
+  if (category === 'cafe') return Coffee;
+  if (category === 'bar') return Wine;
+  if (category === 'bakery') return Croissant;
+  if (category === 'shop') return ShoppingBag;
+  if (category === 'experience') return Sparkles;
+  return Utensils;
+}
+
+const SUBCATEGORY_LABEL: Record<string, string> = {
+  cafe: '咖啡',
+  coffee: '咖啡',
+  coffee_shop: '咖啡',
+  bakery: '烘焙',
+  cake: '甜點',
+  dessert: '甜點',
+  restaurant: '餐廳',
+  chinese: '中式料理',
+  cantonese: '粵菜',
+  dim_sum: '點心',
+  noodle: '麵食',
+  vietnamese: '越南菜',
+  thai: '泰國菜',
+  korean: '韓式料理',
+  japanese: '日式料理',
+  sushi: '壽司',
+  ramen: '拉麵',
+  steak: '牛排',
+  steak_house: '牛排館',
+  mexican: '墨西哥菜',
+  indian: '印度菜',
+  italian: '意大利菜',
+  french: '法國菜',
+  western: '西餐',
+  burger: '漢堡',
+  pizza: '披薩',
+  seafood: '海鮮',
+  vegetarian: '素食',
+  vegan: '純素料理',
+  hotpot: '火鍋',
+  bar: '酒吧',
+  pub: '酒館',
+  cocktail: '調酒',
+  wine_bar: '葡萄酒吧',
+};
+
+export function getSubcategoryLabel(subcategory: string, category: POICategory): string {
+  const normalized = (subcategory || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (SUBCATEGORY_LABEL[normalized]) return SUBCATEGORY_LABEL[normalized];
+  if (/\p{Script=Han}/u.test(subcategory)) return subcategory;
+  return CATEGORY_LABEL[category];
+}

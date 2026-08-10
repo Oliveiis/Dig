@@ -1,4 +1,57 @@
-export type POICategory = 'cafe' | 'restaurant' | 'bar';
+export type POICategory = 'cafe' | 'restaurant' | 'bar' | 'bakery' | 'shop' | 'experience';
+
+export type EvidenceLevel = 'decision' | 'basic';
+export type PlaceSourceType = 'dig' | 'xiaohongshu' | 'google' | 'official';
+
+export interface POIPhoto {
+  id: string;
+  url: string;
+  alt: string;
+  kind: 'storefront' | 'signature' | 'interior' | 'community';
+  source_label?: string;
+  source_url?: string;
+}
+
+export interface POIDecision {
+  headline: string;
+  summary: string;
+  best_time?: string;
+  fit?: string;
+  not_for?: string;
+}
+
+export interface POIClaim {
+  id: string;
+  kind: 'sku' | 'timing' | 'fit' | 'caveat' | 'status';
+  headline: string;
+  detail: string;
+  confidence: 'high' | 'medium' | 'low';
+  support_count: number;
+  last_verified_at: string;
+  source_ids: string[];
+}
+
+export interface POISourceSummary {
+  id: string;
+  type: PlaceSourceType;
+  label: string;
+  count?: number;
+  updated_at: string;
+  url?: string;
+}
+
+export interface CommunityPost {
+  id: string;
+  source: 'dig' | 'xiaohongshu';
+  author: string;
+  text: string;
+  posted_at: string;
+  verified_visit?: boolean;
+  reaction?: CheckinReaction;
+  ordered_items?: string[];
+  photo_url?: string;
+  source_url?: string;
+}
 
 export type POISubcategory =
   | '精品咖啡' | '咖啡烘焙'
@@ -41,6 +94,16 @@ export interface POI {
   recommendation_count?: number;
   mention_count?: number;
   price_range?: string;
+  address?: string;
+  walk_minutes?: number;
+  evidence_level?: EvidenceLevel;
+  open_status_checked_at?: string;
+  google_place_id?: string;
+  decision?: POIDecision;
+  photos?: POIPhoto[];
+  claims?: POIClaim[];
+  sources?: POISourceSummary[];
+  community_posts?: CommunityPost[];
 }
 
 export interface CheckinEntry {

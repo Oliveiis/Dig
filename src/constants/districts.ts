@@ -12,10 +12,12 @@ export const HONG_KONG_DISTRICTS: District[] = [
   { id: 'kennedy-town', name: '堅尼地城', lat: 22.2817, lng: 114.1287 },
   { id: 'wan-chai', name: '灣仔', lat: 22.2760, lng: 114.1751 },
   { id: 'causeway-bay', name: '銅鑼灣', lat: 22.2800, lng: 114.1850 },
-  { id: 'tsim-sha-tsui', name: '尖沙咀', lat: 22.2988, lng: 114.1722 },
-  { id: 'mong-kok', name: '旺角', lat: 22.3193, lng: 114.1694 },
-  { id: 'sham-shui-po', name: '深水埗', lat: 22.3307, lng: 114.1622 },
   { id: 'tai-hang', name: '大坑', lat: 22.2783, lng: 114.1917 },
+  { id: 'north-point', name: '北角', lat: 22.2905, lng: 114.2013 },
+  { id: 'quarry-bay', name: '鰂魚涌', lat: 22.2867, lng: 114.2133 },
+  { id: 'wong-chuk-hang', name: '黃竹坑', lat: 22.2486, lng: 114.1686 },
+  { id: 'aberdeen', name: '香港仔', lat: 22.2480, lng: 114.1552 },
+  { id: 'stanley', name: '赤柱', lat: 22.2185, lng: 114.2110 },
 ];
 
 export function findNearestDistrict(lat: number, lng: number): District {

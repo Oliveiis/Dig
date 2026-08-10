@@ -28,7 +28,7 @@ export default function App() {
   };
 
   return (
-    <div className="w-full h-screen bg-app-bg relative overflow-hidden flex flex-col">
+    <div className="mobile-container">
       <main className="flex-1 relative overflow-hidden">
         {renderScreen()}
       </main>

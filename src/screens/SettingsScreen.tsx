@@ -22,6 +22,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
       <header className="px-6 pt-12 pb-4 flex items-center justify-between border-b border-app-border bg-app-bg">
         <button 
           onClick={onBack}
+          aria-label="返回"
           className="w-10 h-10 rounded-full bg-app-surface border border-app-border flex items-center justify-center text-app-text active:scale-95 transition-transform"
         >
           <ChevronLeft size={20} />
@@ -29,6 +30,7 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
         <h2 className="text-[17px] font-bold font-display text-app-text">賬戶設置</h2>
         <button 
           onClick={handleSave}
+          aria-label="儲存賬戶設置"
           className="text-[13px] font-bold font-mono text-app-text uppercase tracking-wider"
         >
           儲存
@@ -42,11 +44,16 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
             <div className="w-24 h-24 rounded-full bg-app-accent flex items-center justify-center text-white text-3xl font-bold font-display">
               {profile.avatar}
             </div>
-            <button className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-app-surface border border-app-border flex items-center justify-center text-app-text shadow-sm">
+            <button
+              type="button"
+              disabled
+              aria-label="更換頭像（本地預覽暫未接入）"
+              className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-app-surface border border-app-border flex items-center justify-center text-app-text3 shadow-sm cursor-not-allowed opacity-60"
+            >
               <Camera size={14} />
             </button>
           </div>
-          <p className="text-[10px] font-mono text-app-text3 uppercase tracking-widest">點擊更換頭像</p>
+          <p className="text-[10px] font-mono text-app-text3 uppercase tracking-widest">頭像上傳暫未接入本地預覽</p>
         </div>
 
         {/* Form Section */}
@@ -81,9 +88,14 @@ export function SettingsScreen({ onBack }: SettingsScreenProps) {
 
         {/* Danger Zone */}
         <div className="mt-auto pt-8">
-          <button className="w-full h-14 border border-app-red/20 text-app-red font-bold rounded-2xl flex items-center justify-center gap-2 active:bg-app-red/5 transition-colors">
+          <button
+            type="button"
+            disabled
+            aria-label="退出登錄（本地預覽無登錄會話）"
+            className="w-full h-14 border border-app-border text-app-text3 font-bold rounded-2xl flex items-center justify-center gap-2 cursor-not-allowed opacity-60"
+          >
             <LogOut size={18} />
-            退出登錄
+            本地預覽無登錄會話
           </button>
         </div>
       </div>

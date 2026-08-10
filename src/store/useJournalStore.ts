@@ -2,6 +2,21 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { CheckinEntry, JournalEntry } from '../types/poi';
 
+function syncCheckin(entry: CheckinEntry) {
+  fetch('/api/feedback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: 'demo-user',
+      place_id: entry.poi_id,
+      feedback_type: entry.reaction,
+      note: entry.text_note ?? null,
+    }),
+  }).catch(() => {
+    // A traveller can still journal offline; sync can retry in a later release.
+  });
+}
+
 interface JournalStore {
   checkins: CheckinEntry[];
   journals: JournalEntry[];
@@ -32,9 +47,10 @@ export const useJournalStore = create<JournalStore>()(
           created_at: '2026-02-15T22:30:00Z'
         }
       ],
-      addCheckin: (entry) => set((state) => ({
-        checkins: [...state.checkins, entry]
-      })),
+      addCheckin: (entry) => {
+        set((state) => ({ checkins: [...state.checkins, entry] }));
+        syncCheckin(entry);
+      },
       addJournal: (entry) => set((state) => ({
         journals: [entry, ...state.journals]
       })),

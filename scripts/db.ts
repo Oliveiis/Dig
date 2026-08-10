@@ -1,5 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
+import type { POI } from '../src/types/poi';
 
 const DB_PATH = path.join(process.cwd(), 'data/dig.db');
 
@@ -7,6 +9,7 @@ let _db: Database.Database | null = null;
 
 export function getDB(): Database.Database {
   if (_db) return _db;
+  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   _db = new Database(DB_PATH);
   _db.pragma('journal_mode = WAL');
   _db.exec(`
@@ -23,6 +26,106 @@ export function getDB(): Database.Database {
       source_url          TEXT,
       crawled_at          TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS places (
+      id                  TEXT PRIMARY KEY,
+      name                TEXT NOT NULL,
+      category            TEXT NOT NULL,
+      subcategory         TEXT,
+      district            TEXT,
+      lat                 REAL NOT NULL,
+      lng                 REAL NOT NULL,
+      address             TEXT,
+      evidence_level      TEXT NOT NULL DEFAULT 'basic',
+      editorial_payload   TEXT NOT NULL,
+      updated_at          TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS place_sources (
+      id                  TEXT PRIMARY KEY,
+      place_id            TEXT NOT NULL,
+      source_type         TEXT NOT NULL,
+      label               TEXT NOT NULL,
+      source_url          TEXT,
+      item_count          INTEGER,
+      updated_at          TEXT NOT NULL,
+      FOREIGN KEY(place_id) REFERENCES places(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS claims (
+      id                  TEXT PRIMARY KEY,
+      place_id            TEXT NOT NULL,
+      kind                TEXT NOT NULL,
+      headline            TEXT NOT NULL,
+      detail              TEXT NOT NULL,
+      confidence          TEXT NOT NULL,
+      support_count       INTEGER NOT NULL DEFAULT 0,
+      last_verified_at    TEXT NOT NULL,
+      FOREIGN KEY(place_id) REFERENCES places(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS claim_evidence (
+      claim_id            TEXT NOT NULL,
+      source_id           TEXT NOT NULL,
+      PRIMARY KEY(claim_id, source_id),
+      FOREIGN KEY(claim_id) REFERENCES claims(id) ON DELETE CASCADE,
+      FOREIGN KEY(source_id) REFERENCES place_sources(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS community_posts (
+      id                  TEXT PRIMARY KEY,
+      place_id            TEXT NOT NULL,
+      source_type         TEXT NOT NULL,
+      author              TEXT NOT NULL,
+      body                TEXT NOT NULL,
+      posted_at           TEXT NOT NULL,
+      verified_visit      INTEGER NOT NULL DEFAULT 0,
+      source_url          TEXT,
+      payload             TEXT NOT NULL,
+      FOREIGN KEY(place_id) REFERENCES places(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS place_status_snapshots (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      place_id            TEXT NOT NULL,
+      is_open_now         INTEGER,
+      hours               TEXT,
+      source_type         TEXT NOT NULL,
+      checked_at          TEXT NOT NULL,
+      FOREIGN KEY(place_id) REFERENCES places(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS user_saves (
+      user_id             TEXT NOT NULL,
+      place_id            TEXT NOT NULL,
+      saved_at            TEXT NOT NULL,
+      PRIMARY KEY(user_id, place_id),
+      FOREIGN KEY(place_id) REFERENCES places(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS proximity_rules (
+      user_id             TEXT NOT NULL,
+      place_id            TEXT NOT NULL,
+      radius_meters       INTEGER NOT NULL DEFAULT 500,
+      enabled             INTEGER NOT NULL DEFAULT 1,
+      last_notified_at    TEXT,
+      PRIMARY KEY(user_id, place_id),
+      FOREIGN KEY(place_id) REFERENCES places(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS user_feedback (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id             TEXT NOT NULL,
+      place_id            TEXT NOT NULL,
+      feedback_type       TEXT NOT NULL,
+      note                TEXT,
+      created_at          TEXT NOT NULL,
+      FOREIGN KEY(place_id) REFERENCES places(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_places_geo ON places(lat, lng);
+    CREATE INDEX IF NOT EXISTS idx_claims_place ON claims(place_id);
+    CREATE INDEX IF NOT EXISTS idx_posts_place_date ON community_posts(place_id, posted_at DESC);
   `);
 
   // Idempotent additive migration — SQLite has no IF NOT EXISTS for ALTER TABLE.
@@ -60,6 +163,121 @@ export function getDB(): Database.Database {
   }
 
   return _db;
+}
+
+export function syncMvpPlaces(pois: POI[]): void {
+  const db = getDB();
+  const upsertPlace = db.prepare(`
+    INSERT INTO places (id, name, category, subcategory, district, lat, lng, address, evidence_level, editorial_payload, updated_at)
+    VALUES (@id, @name, @category, @subcategory, @district, @lat, @lng, @address, @evidence_level, @editorial_payload, @updated_at)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      category = excluded.category,
+      subcategory = excluded.subcategory,
+      district = excluded.district,
+      lat = excluded.lat,
+      lng = excluded.lng,
+      address = excluded.address,
+      evidence_level = excluded.evidence_level,
+      editorial_payload = excluded.editorial_payload,
+      updated_at = excluded.updated_at
+  `);
+  const insertSource = db.prepare(`
+    INSERT OR REPLACE INTO place_sources (id, place_id, source_type, label, source_url, item_count, updated_at)
+    VALUES (@id, @place_id, @source_type, @label, @source_url, @item_count, @updated_at)
+  `);
+  const insertClaim = db.prepare(`
+    INSERT OR REPLACE INTO claims (id, place_id, kind, headline, detail, confidence, support_count, last_verified_at)
+    VALUES (@id, @place_id, @kind, @headline, @detail, @confidence, @support_count, @last_verified_at)
+  `);
+  const insertEvidence = db.prepare(`INSERT OR REPLACE INTO claim_evidence (claim_id, source_id) VALUES (?, ?)`);
+  const insertPost = db.prepare(`
+    INSERT OR REPLACE INTO community_posts (id, place_id, source_type, author, body, posted_at, verified_visit, source_url, payload)
+    VALUES (@id, @place_id, @source_type, @author, @body, @posted_at, @verified_visit, @source_url, @payload)
+  `);
+
+  const sync = db.transaction((items: POI[]) => {
+    const now = new Date().toISOString();
+    for (const poi of items) {
+      upsertPlace.run({
+        id: poi.id,
+        name: poi.name,
+        category: poi.category,
+        subcategory: poi.subcategory,
+        district: poi.district,
+        lat: poi.coordinates.lat,
+        lng: poi.coordinates.lng,
+        address: poi.address ?? null,
+        evidence_level: poi.evidence_level ?? 'basic',
+        editorial_payload: JSON.stringify(poi),
+        updated_at: now,
+      });
+      db.prepare('DELETE FROM claim_evidence WHERE claim_id IN (SELECT id FROM claims WHERE place_id = ?)').run(poi.id);
+      db.prepare('DELETE FROM claims WHERE place_id = ?').run(poi.id);
+      db.prepare('DELETE FROM place_sources WHERE place_id = ?').run(poi.id);
+      db.prepare('DELETE FROM community_posts WHERE place_id = ?').run(poi.id);
+
+      for (const source of poi.sources ?? []) {
+        insertSource.run({
+          id: source.id,
+          place_id: poi.id,
+          source_type: source.type,
+          label: source.label,
+          source_url: source.url ?? null,
+          item_count: source.count ?? null,
+          updated_at: source.updated_at,
+        });
+      }
+      for (const claim of poi.claims ?? []) {
+        insertClaim.run({ ...claim, place_id: poi.id });
+        for (const sourceId of claim.source_ids) insertEvidence.run(claim.id, sourceId);
+      }
+      for (const post of poi.community_posts ?? []) {
+        insertPost.run({
+          id: post.id,
+          place_id: poi.id,
+          source_type: post.source,
+          author: post.author,
+          body: post.text,
+          posted_at: post.posted_at,
+          verified_visit: post.verified_visit ? 1 : 0,
+          source_url: post.source_url ?? null,
+          payload: JSON.stringify(post),
+        });
+      }
+    }
+  });
+  sync(pois);
+}
+
+export function listMvpPlaces(): POI[] {
+  const rows = getDB().prepare('SELECT editorial_payload FROM places ORDER BY evidence_level DESC, district, name').all() as Array<{ editorial_payload: string }>;
+  return rows.map((row) => JSON.parse(row.editorial_payload) as POI);
+}
+
+export function getMvpPlace(id: string): POI | null {
+  const row = getDB().prepare('SELECT editorial_payload FROM places WHERE id = ?').get(id) as { editorial_payload: string } | undefined;
+  return row ? JSON.parse(row.editorial_payload) as POI : null;
+}
+
+export function setUserSave(userId: string, placeId: string, saved: boolean): void {
+  const db = getDB();
+  if (saved) {
+    db.prepare('INSERT OR REPLACE INTO user_saves (user_id, place_id, saved_at) VALUES (?, ?, ?)').run(userId, placeId, new Date().toISOString());
+    db.prepare('INSERT OR REPLACE INTO proximity_rules (user_id, place_id, radius_meters, enabled) VALUES (?, ?, 500, 1)').run(userId, placeId);
+  } else {
+    db.prepare('DELETE FROM user_saves WHERE user_id = ? AND place_id = ?').run(userId, placeId);
+    db.prepare('DELETE FROM proximity_rules WHERE user_id = ? AND place_id = ?').run(userId, placeId);
+  }
+}
+
+export function listUserSaves(userId: string): string[] {
+  return (getDB().prepare('SELECT place_id FROM user_saves WHERE user_id = ? ORDER BY saved_at DESC').all(userId) as Array<{ place_id: string }>).map((row) => row.place_id);
+}
+
+export function addUserFeedback(input: { userId: string; placeId: string; type: string; note?: string }): void {
+  getDB().prepare('INSERT INTO user_feedback (user_id, place_id, feedback_type, note, created_at) VALUES (?, ?, ?, ?, ?)')
+    .run(input.userId, input.placeId, input.type, input.note ?? null, new Date().toISOString());
 }
 
 export interface POIEnrichment {

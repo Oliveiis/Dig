@@ -6,12 +6,12 @@ import { useLocationStore } from '../store/useLocationStore';
 import { ChevronDown, Bookmark } from 'lucide-react';
 import { ProximityAlertBanner } from '../components/wander/ProximityAlertBanner';
 import { useProximityAlert } from '../hooks/useProximityAlert';
-import { motion, AnimatePresence, PanInfo } from 'motion/react';
 import { useState } from 'react';
 import { BookmarkListSheet } from '../components/bookmark/BookmarkListSheet';
 import { DistrictSelector } from '../components/map/DistrictSelector';
 import { QuickCheckinModal } from '../components/journal/QuickCheckinModal';
 import { FavouriteReviewModal } from '../components/favourite/FavouriteReviewModal';
+import { DecisionRail } from '../components/wander/DecisionRail';
 
 export function WanderScreen() {
   const { selectedPOI, showFullCard, setShowFullCard } = usePOIStore();
@@ -20,12 +20,6 @@ export function WanderScreen() {
   const [isDistrictSelectorOpen, setIsDistrictSelectorOpen] = useState(false);
   const [isCheckinOpen, setIsCheckinOpen] = useState(false);
   const [isFavouriteOpen, setIsFavouriteOpen] = useState(false);
-  const [isSheetDragging, setIsSheetDragging] = useState(false);
-
-  const handleSheetDragEnd = (_: any, info: PanInfo) => {
-    if (info.offset.y > 100 || info.velocity.y > 500) setShowFullCard(false);
-  };
-
   useProximityAlert();
 
   return (
@@ -57,23 +51,25 @@ export function WanderScreen() {
       )}
 
       {/* Top Bar */}
-      <header className="absolute top-0 left-0 right-0 h-20 px-6 pt-10 pb-4 flex justify-between items-end z-50 pointer-events-none">
+      <header className="absolute top-0 left-0 right-0 h-20 px-5 pt-9 pb-3 flex justify-between items-end z-50 pointer-events-none">
         <div className="flex flex-col gap-0.5 pointer-events-auto">
-          <h1 className="text-2xl font-bold tracking-tighter text-app-text font-display flex items-center gap-2">
-            dig <span className="text-[10px] font-mono text-app-accent uppercase tracking-widest bg-app-accent/10 px-1.5 py-0.5 rounded border border-app-accent/20">beta</span>
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-[-0.03em] text-app-accent">
+            dig <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[9px] font-semibold tracking-wide text-app-accent">港島 MVP</span>
           </h1>
         </div>
 
         <div className="flex items-center gap-2 pointer-events-auto">
           <button
             onClick={() => setIsBookmarkSheetOpen(true)}
-            className="w-9 h-9 rounded-full bg-app-surface/80 backdrop-blur-md border border-app-border flex items-center justify-center text-app-text active:scale-95 transition-transform"
+            aria-label="打開收藏"
+            className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-app-accent shadow-[0_3px_8px_rgba(24,50,58,0.15)] active:scale-95 transition-transform"
           >
             <Bookmark size={18} />
           </button>
           <button
             onClick={() => setIsDistrictSelectorOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-app-surface/80 backdrop-blur-md border border-app-border text-app-text font-bold text-xs active:scale-95 transition-transform"
+            aria-label="選擇探索區域"
+            className="h-10 flex items-center gap-1.5 px-3.5 rounded-full bg-white text-app-text font-semibold text-xs shadow-[0_3px_8px_rgba(24,50,58,0.15)] active:scale-95 transition-transform"
           >
             {currentDistrict.name} <ChevronDown size={14} className="text-app-text2" />
           </button>
@@ -86,48 +82,20 @@ export function WanderScreen() {
       {/* Filter Chips */}
       <CategoryFilterChips />
 
-      {/* Fact Card Bottom Sheet */}
-      <AnimatePresence>
-        {showFullCard && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowFullCard(false)}
-              className="fixed inset-0 bg-black/20 backdrop-blur-[2px]"
-              style={{ zIndex: 9998 }}
-            />
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              drag="y"
-              dragConstraints={{ top: 0 }}
-              dragElastic={0.2}
-              onDragStart={() => setIsSheetDragging(true)}
-              onDragEnd={handleSheetDragEnd}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[24px] shadow-2xl overflow-hidden flex flex-col"
-              style={{ maxHeight: '85vh', zIndex: 9999 }}
-            >
-              <div className="w-full flex justify-center py-3 cursor-grab active:cursor-grabbing">
-                <div className="w-12 h-1.5 bg-border2 rounded-full" />
-              </div>
-              <div className="flex-1 overflow-y-auto px-6 pb-12">
-                {selectedPOI && (
-                  <FactCard
-                    poi={selectedPOI}
-                    onClose={() => setShowFullCard(false)}
-                    onCheckin={() => { setIsCheckinOpen(true); }}
-                    onFavourite={() => { setIsFavouriteOpen(true); }}
-                  />
-                )}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      {/* Compact store comparison cards keep content browsing independent from the map camera. */}
+      {!showFullCard && <DecisionRail />}
+
+      {/* A single half-sheet holds the complete store decision; there is no duplicate SKU stage. */}
+      {showFullCard && selectedPOI && (
+        <FactCard
+          key={selectedPOI.id}
+          poi={selectedPOI}
+          initialStage="decision"
+          onClose={() => setShowFullCard(false)}
+          onCheckin={() => { setIsCheckinOpen(true); }}
+          onFavourite={() => { setIsFavouriteOpen(true); }}
+        />
+      )}
     </div>
   );
 }

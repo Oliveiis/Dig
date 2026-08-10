@@ -16,6 +16,7 @@ interface OSMResponse {
 const OSM_CACHE_KEY = 'dig:osm-grid:v1';
 const OSM_TTL_MS = 24 * 60 * 60 * 1000;
 const GRID_DEG = 0.0025; // ~280m at HK latitude
+const OSM_REQUEST_TIMEOUT_MS = 10000;
 
 interface OSMCacheEntry {
   pois: POI[];
@@ -71,17 +72,21 @@ export async function fetchPOIsNear(lat: number, lng: number, radiusMeters: numb
       node["amenity"~"cafe|restaurant|bar"](around:${radiusMeters},${lat},${lng});
       way["amenity"~"cafe|restaurant|bar"](around:${radiusMeters},${lat},${lng});
       relation["amenity"~"cafe|restaurant|bar"](around:${radiusMeters},${lat},${lng});
+      node["shop"~"bakery|confectionery|deli|coffee"](around:${radiusMeters},${lat},${lng});
+      way["shop"~"bakery|confectionery|deli|coffee"](around:${radiusMeters},${lat},${lng});
     );
     out center;
   `;
 
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), OSM_REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch('/api/osm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query }),
+      signal: controller.signal,
     });
-
     if (!response.ok) throw new Error(`OSM fetch failed: ${response.statusText}`);
 
     const data: OSMResponse = await response.json();
@@ -96,6 +101,8 @@ export async function fetchPOIsNear(lat: number, lng: number, radiusMeters: numb
       return stale;
     }
     return [];
+  } finally {
+    window.clearTimeout(timeoutId);
   }
 }
 
@@ -106,11 +113,13 @@ function mapOSMToPOI(elements: OSMElement[]): POI[] {
     const tags = el.tags || {};
     
     let category: POICategory = 'restaurant';
-    if (tags.amenity === 'cafe') category = 'cafe';
+    if (tags.shop === 'bakery' || tags.shop === 'confectionery') category = 'bakery';
+    else if (tags.shop === 'deli' || tags.shop === 'coffee') category = 'shop';
+    else if (tags.amenity === 'cafe') category = 'cafe';
     else if (tags.amenity === 'bar') category = 'bar';
 
     // OSM cuisine can be semicolon-joined ("coffee_shop;pizza;burger") — take first token only.
-    const rawSub = tags.cuisine || tags.amenity || '未知';
+    const rawSub = tags.cuisine || tags.shop || tags.amenity || '未知';
     const subcategory = rawSub.split(';')[0].trim() || '未知';
 
     return {
@@ -118,7 +127,7 @@ function mapOSMToPOI(elements: OSMElement[]): POI[] {
       name: tags.name || '未命名地點',
       category,
       subcategory,
-      hook_tag: subcategory.toUpperCase(),
+      hook_tag: '',
       district: tags['addr:district'] || tags['addr:suburb'] || '附近',
       city_code: 'HKG',
       coordinates: { lat, lng },
@@ -131,10 +140,11 @@ function mapOSMToPOI(elements: OSMElement[]): POI[] {
       },
       signature_items: [],
       souvenirs: [],
-      why_worth_it: tags.description || `位於${tags['addr:street'] || '這條街'}的${category}`,
+      why_worth_it: null,
       caveats: [],
       flash_event: null,
       is_chain: tags.brand !== undefined,
+      evidence_level: 'basic',
       source_links: {
         google_maps: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
       }

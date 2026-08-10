@@ -1,9 +1,17 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
-import fs from "fs";
 import { fileURLToPath } from "url";
 import { config } from "dotenv";
+import { HK_ISLAND_MVP_POIS } from "./src/data/hk-island-mvp.ts";
+import {
+  addUserFeedback,
+  getMvpPlace,
+  listMvpPlaces,
+  listUserSaves,
+  setUserSave,
+  syncMvpPlaces,
+} from "./scripts/db.ts";
 config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -303,8 +311,64 @@ function buildPaymentInfo(gmaps: any): { visa: boolean | null; cash: boolean; no
 async function startServer() {
   const app = express();
   const PORT = 3000;
+  let mvpDatabaseReady = false;
+
+  try {
+    syncMvpPlaces(HK_ISLAND_MVP_POIS);
+    mvpDatabaseReady = true;
+  } catch (error) {
+    console.warn('[mvp-db] SQLite unavailable, using bundled read-only data:', error);
+  }
 
   app.use(express.json());
+
+  app.get('/api/explore', (_req, res) => {
+    res.json(mvpDatabaseReady ? listMvpPlaces() : HK_ISLAND_MVP_POIS);
+  });
+
+  app.get('/api/places/:id', (req, res) => {
+    const place = mvpDatabaseReady
+      ? getMvpPlace(req.params.id)
+      : HK_ISLAND_MVP_POIS.find((item) => item.id === req.params.id) ?? null;
+    if (!place) return res.status(404).json({ error: 'place_not_found' });
+    res.json(place);
+  });
+
+  app.get('/api/saves', (req, res) => {
+    if (!mvpDatabaseReady) return res.json([]);
+    const userId = String(req.query.user_id || 'demo-user');
+    res.json(listUserSaves(userId));
+  });
+
+  app.post('/api/saves', (req, res) => {
+    if (!mvpDatabaseReady) return res.status(503).json({ error: 'storage_unavailable' });
+    const userId = String(req.body?.user_id || 'demo-user');
+    const placeId = String(req.body?.place_id || '');
+    if (!getMvpPlace(placeId)) return res.status(404).json({ error: 'place_not_found' });
+    setUserSave(userId, placeId, true);
+    res.status(201).json({ saved: true, place_id: placeId, proximity_radius_meters: 500 });
+  });
+
+  app.delete('/api/saves/:placeId', (req, res) => {
+    if (!mvpDatabaseReady) return res.status(503).json({ error: 'storage_unavailable' });
+    const userId = String(req.query.user_id || 'demo-user');
+    setUserSave(userId, req.params.placeId, false);
+    res.json({ saved: false, place_id: req.params.placeId });
+  });
+
+  app.post('/api/feedback', (req, res) => {
+    if (!mvpDatabaseReady) return res.status(503).json({ error: 'storage_unavailable' });
+    const placeId = String(req.body?.place_id || '');
+    const feedbackType = String(req.body?.feedback_type || 'general');
+    if (!getMvpPlace(placeId)) return res.status(404).json({ error: 'place_not_found' });
+    addUserFeedback({
+      userId: String(req.body?.user_id || 'demo-user'),
+      placeId,
+      type: feedbackType,
+      note: req.body?.note ? String(req.body.note) : undefined,
+    });
+    res.status(201).json({ accepted: true });
+  });
 
   // Google Maps + DeepSeek enrichment
   app.post("/api/dig", async (req, res) => {
@@ -368,17 +432,7 @@ ${reviewText ? `- 用户评论摘录：\n${reviewText}` : ""}
   // Pre-enriched POIs endpoint — serves Food Crawler output
   // This bypasses the slow real-time SerpApi + DeepSeek pipeline
   app.get("/api/pre-enriched", async (_req, res) => {
-    try {
-      const dataPath = path.join(__dirname, "src", "data", "dig-pois.json");
-      if (fs.existsSync(dataPath)) {
-        const raw = fs.readFileSync(dataPath, "utf-8");
-        res.json(JSON.parse(raw));
-      } else {
-        res.json([]);
-      }
-    } catch {
-      res.json([]);
-    }
+    res.json(mvpDatabaseReady ? listMvpPlaces() : HK_ISLAND_MVP_POIS);
   });
 
   // API routes
@@ -401,72 +455,48 @@ ${reviewText ? `- 用户评论摘录：\n${reviewText}` : ""}
       "https://overpass.paws.fi/api/interpreter"
     ];
 
-    // Shuffle instances to distribute load
-    const shuffledInstances = [...OVERPASS_INSTANCES].sort(() => Math.random() - 0.5);
+    // Race a small set of mirrors instead of retrying every mirror serially.
+    // The old path could leave the client waiting for several minutes.
+    const candidates = [...OVERPASS_INSTANCES]
+      .sort(() => Math.random() - 0.5)
+      .slice(0, 4);
+    const controllers = candidates.map(() => new AbortController());
 
-    for (const instanceUrl of shuffledInstances) {
-      let attempts = 0;
-      const maxAttempts = 2;
+    const requests = candidates.map(async (instanceUrl, index) => {
+      const controller = controllers[index];
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      try {
+        const response = await fetch(instanceUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+            "User-Agent": "DigStreetExplorer/1.0"
+          },
+          body: `data=${encodeURIComponent(query)}`,
+          signal: controller.signal
+        });
 
-      while (attempts < maxAttempts) {
-        attempts++;
-        try {
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-
-          const response = await fetch(instanceUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-              "Accept": "application/json",
-              "User-Agent": "DigStreetExplorer/1.0"
-            },
-            body: `data=${encodeURIComponent(query)}`,
-            signal: controller.signal
-          });
-
-          clearTimeout(timeoutId);
-
-          if (!response.ok) {
-            console.warn(`Overpass instance ${instanceUrl} failed with status ${response.status} (Attempt ${attempts}/${maxAttempts})`);
-            if (response.status === 504 || response.status === 429 || response.status === 502 || response.status === 503) {
-              // Wait a bit before retry for transient errors
-              await new Promise(resolve => setTimeout(resolve, 1500 * attempts));
-              continue;
-            }
-            break; // Don't retry for other errors (like 400)
-          }
-
-          const contentType = response.headers.get("content-type");
-          if (!contentType || !contentType.includes("application/json")) {
-            console.warn(`Overpass instance ${instanceUrl} returned non-JSON content: ${contentType}`);
-            break;
-          }
-
-          const text = await response.text();
-          try {
-            const data = JSON.parse(text);
-            return res.json(data);
-          } catch (parseError) {
-            console.error(`Failed to parse JSON from ${instanceUrl}:`, text.substring(0, 100));
-            break;
-          }
-        } catch (error: any) {
-          if (error.name === 'AbortError') {
-            console.warn(`Overpass instance ${instanceUrl} timed out (Attempt ${attempts}/${maxAttempts})`);
-            // Retry once for timeout
-            continue;
-          } else {
-            console.error(`Error fetching from OSM instance ${instanceUrl}:`, error.message || error);
-            // Retry once for connection errors too, as they might be transient
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            continue;
-          }
+        if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+        const contentType = response.headers.get("content-type") || "";
+        if (!contentType.includes("application/json")) {
+          throw new Error(`Unexpected content type: ${contentType || 'unknown'}`);
         }
+        return await response.json();
+      } finally {
+        clearTimeout(timeoutId);
       }
-    }
+    });
 
-    res.status(502).json({ error: "All Overpass instances failed or timed out" });
+    try {
+      const data = await Promise.any(requests);
+      controllers.forEach(controller => controller.abort());
+      return res.json(data);
+    } catch (error) {
+      controllers.forEach(controller => controller.abort());
+      console.warn("All raced Overpass instances failed:", error);
+      return res.status(502).json({ error: "All Overpass instances failed or timed out" });
+    }
   });
 
   // Vite middleware for development

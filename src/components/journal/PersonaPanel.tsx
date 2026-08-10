@@ -29,7 +29,7 @@ export function PersonaPanel({ persona, checkins }: PersonaPanelProps) {
   return (
     <div className="flex flex-col gap-8 pb-10">
       {/* Persona Card */}
-      <div className="bg-app-surface border border-app-border rounded-3xl p-5 ios-shadow">
+      <div className="bg-app-surface rounded-2xl p-5 ios-shadow">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-xl">{persona.emoji}</span>
           <span className="text-[17px] font-bold font-display text-app-text">{persona.title}</span>
@@ -38,8 +38,8 @@ export function PersonaPanel({ persona, checkins }: PersonaPanelProps) {
           {persona.unlock_info}
         </div>
         
-        <div className="border-l-2 border-app-accent pl-4 mb-6">
-          <p className="text-[11px] font-mono leading-relaxed text-app-text2">
+        <div className="bg-accent-soft rounded-xl p-4 mb-6">
+          <p className="text-[11px] font-mono leading-relaxed text-app-text">
             {persona.description}
           </p>
         </div>
@@ -80,15 +80,15 @@ export function PersonaPanel({ persona, checkins }: PersonaPanelProps) {
 
       {/* Mini Stats */}
       <div className="flex gap-2">
-        <div className="flex-1 bg-app-surface border border-app-border rounded-2xl p-4 text-center">
+        <div className="flex-1 bg-app-surface rounded-xl p-4 text-center ios-shadow">
           <span className="block text-lg font-bold font-display text-app-text">{checkins.length}</span>
           <span className="block text-[9px] font-mono text-app-text3 uppercase mt-1">打卡總數</span>
         </div>
-        <div className="flex-1 bg-app-surface border border-app-border rounded-2xl p-4 text-center">
+        <div className="flex-1 bg-app-surface rounded-xl p-4 text-center ios-shadow">
           <span className="block text-lg font-bold font-display text-app-text">{stats.regretRate}%</span>
           <span className="block text-[9px] font-mono text-app-text3 uppercase mt-1">踩雷率</span>
         </div>
-        <div className="flex-1 bg-app-surface border border-app-border rounded-2xl p-4 text-center flex flex-col justify-center">
+        <div className="flex-1 bg-app-surface rounded-xl p-4 text-center flex flex-col justify-center ios-shadow">
           <span className="block text-[11px] font-bold font-display text-app-text truncate">{stats.topDistrict}</span>
           <span className="block text-[9px] font-mono text-app-text3 uppercase mt-1">最常出沒</span>
         </div>

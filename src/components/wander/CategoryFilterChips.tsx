@@ -1,32 +1,33 @@
 import React from 'react';
-import { usePOIStore } from '../../store/usePOIStore';
-import { ALLOWED_CATEGORIES, CATEGORY_COLOR } from '../../utils/categoryConfig';
+import { Clock3, Coffee, Sparkles, ShoppingBag } from 'lucide-react';
+import { ExploreIntent, usePOIStore } from '../../store/usePOIStore';
+
+const intents: Array<{ id: ExploreIntent; label: string; icon: React.ElementType }> = [
+  { id: 'for_you', label: '為你挑', icon: Sparkles },
+  { id: 'nearby', label: '15 分鐘內', icon: Clock3 },
+  { id: 'sweet', label: '想吃甜的', icon: Coffee },
+  { id: 'takeaway', label: '能帶走', icon: ShoppingBag },
+];
 
 export const CategoryFilterChips: React.FC = () => {
-  const { activeFilter, setFilter } = usePOIStore();
-
-  const categories = [
-    { id: 'all', label: '全部', color: '#1a1a1a' },
-    ...ALLOWED_CATEGORIES.map(cat => ({
-      id: cat,
-      label: cat === 'cafe' ? '咖啡' : cat === 'restaurant' ? '餐廳' : '酒吧',
-      color: CATEGORY_COLOR[cat]
-    }))
-  ] as const;
+  const { activeIntent, setIntent } = usePOIStore();
 
   return (
-    <div className="fixed top-20 left-0 right-0 z-[1000] px-6 overflow-x-auto no-scrollbar flex gap-2 py-2">
-      {categories.map((cat) => {
-        const isActive = activeFilter === cat.id;
+    <div className="absolute left-0 right-0 top-20 z-40 flex gap-2 overflow-x-auto px-4 py-2 no-scrollbar">
+      {intents.map(({ id, label, icon: Icon }) => {
+        const active = activeIntent === id;
         return (
           <button
-            key={cat.id}
-            onClick={() => setFilter(cat.id)}
-            className={`flex-shrink-0 px-4 py-1.5 rounded-full border transition-all font-mono text-[11px] font-medium
-              ${isActive ? 'bg-text text-white border-text shadow-md' : 'bg-white/90 backdrop-blur-md text-text2 border-border2'}
-            `}
+            key={id}
+            type="button"
+            onClick={() => setIntent(id)}
+            aria-pressed={active}
+            className={`flex min-h-10 flex-shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[12px] font-semibold shadow-[0_2px_7px_rgba(24,50,58,0.1)] transition-[transform,background-color,color] active:scale-95 ${
+              active ? 'bg-app-accent text-white' : 'bg-white text-app-text2'
+            }`}
           >
-            {cat.label}
+            <Icon size={14} strokeWidth={2.2} />
+            {label}
           </button>
         );
       })}

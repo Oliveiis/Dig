@@ -1,153 +1,180 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
-
 # Dig
 
-[English](./README.md) | [简体中文](./README.zh-CN.md)
+**An AI-assisted place decision map for travellers exploring Hong Kong Island.**
 
-**A decision tool for street explorers — get structured facts about shops nearby and decide whether to walk in, in 3 seconds.**
+[简体中文](./README.zh-CN.md) · [Product requirements](./docs/PRD-HK-ISLAND-MVP.md) · [UI language](./docs/UI-DESIGN-LANGUAGE.md)
 
-🌐 **Live demo (AI Studio)**: https://ai.studio/apps/da74fa5a-3561-4996-a330-f3f426169bc1
-▲ **Deploy on Vercel**: see [Vercel deployment](#deploy-on-vercel)
+Dig reduces the work between “there are many places nearby” and “this one is worth walking to”. Instead of covering the map with every available POI, it ranks a small number of current winners and turns recent place content into structured, store-level guidance:
 
-Mobile-first web app that turns your surroundings into quick, structured shop facts (payment, signature items, caveats) so you can decide on the spot. Real-time POI discovery powered by OpenStreetMap + Google Maps, enriched by a multi-source food crawler.
+- why the place is worth considering;
+- representative items rather than a single generic rating;
+- queueing, sell-out, booking and opening-status risks;
+- evidence volume, freshness and direct source links;
+- walking directions, saves, proximity reminders and visit journals.
 
-## Features
+The current build is a mobile-first Hong Kong Island MVP and is optimized for a 430px viewport.
 
-- **Street Explorer** — real-time POI discovery based on geolocation
-- **Structured Facts** — quick-glance info: payment methods, signature items, caveats
-- **Bookmark & Journal** — save and revisit places
-- **Wander / Search** — purpose-built screens for browsing and finding
-- **Quick Check-in & Proximity Alerts** — lightweight logging and nearby nudges
-- **CORS-safe OSM proxy** — server-side fetching with multi-instance fallback, shuffling, and exponential backoff for 504/429
-- **Pre-enriched dataset** — cold loads served from a crawled & summarized POI dataset so the first paint is never empty
+## Product experience
 
-## Tech Stack
+### A map that helps users decide
 
-- **Frontend**: React 19, Vite 6, Tailwind CSS 4, Zustand, Framer Motion, React Router
-- **Maps**: Google Maps (`@vis.gl/react-google-maps`), OpenStreetMap (proxied)
-- **Data**: Firestore, better-sqlite3 (offline scripts only)
-- **AI / Enrichment**: DeepSeek (hook_tag / why_worth_it copy), Google Gemini; POI enrichment via SerpAPI + DeepSeek
-- **Crawling**: Playwright (OpenRice, Reddit, Xiaohongshu)
+- **City scale:** Dig POIs stay hidden so the base map remains readable.
+- **Neighbourhood scale:** ranked POIs appear progressively; the Top 3 receive visual priority and lower-ranked candidates fall back to small dots.
+- **Street scale:** labels appear only when collision rules allow them.
+- **Stable navigation:** dragging the map does not automatically refetch, rerank or move the camera.
+- **Compact comparison rail:** 3–5 nearby stores can be compared without obscuring most of the map.
+
+### One clear detail layer
+
+Selecting a marker or comparison card opens a single half-height store sheet. It contains:
+
+1. storefront and food imagery;
+2. current status, payment and walking time;
+3. an AI-ready store-level synthesis based on valid claims and recent sources;
+4. a representative signature-item set;
+5. timing and visit risks;
+6. practical information and direct Google Maps, Xiaohongshu or official links.
+
+There is no duplicate SKU sheet, second full-screen detail page or generated “evidence article”. Each interaction must add new decision value.
+
+### Evidence before copy
+
+Dig models recommendations as structured claims rather than free-form marketing text.
+
+```text
+Place
+├── claim: signature item
+│   ├── support count
+│   ├── source IDs
+│   ├── confidence
+│   └── last verified time
+├── claim: timing or availability risk
+└── source snapshots
+```
+
+Only evidence-qualified places enter the main recommendation layer. When evidence is insufficient, the UI reports that limitation instead of inventing labels such as “hidden gem” or “must visit”.
+
+## Current MVP scope
+
+- Hong Kong Island district selection and location fallback.
+- Nine editorial seed places with structured decisions, claims and sources.
+- Ranked Top POIs and zoom-aware MapLibre markers.
+- Store comparison cards and a glass-style half sheet.
+- Natural-language, place-name, category and SKU search.
+- Local-first saves, nearby reminders, check-ins and journals.
+- OSM/Overpass candidate discovery with a server-side proxy and fallbacks.
+- Optional Google place enrichment through SerpAPI and DeepSeek.
+
+## Tech stack
+
+| Layer | Technology |
+| --- | --- |
+| UI | React 19, TypeScript, Vite 6, Tailwind CSS 4 |
+| State | Zustand with local persistence |
+| Map | MapLibre GL JS, Geoapify Klokantech Basic tiles, OSM fallback |
+| Local backend | Express + Vite middleware |
+| Vercel API | TypeScript serverless functions in `api/` |
+| Local MVP storage | SQLite via `better-sqlite3` |
+| Enrichment | SerpAPI + DeepSeek, with pre-enriched editorial fallback |
 
 ## Architecture
 
-The app is a Vite SPA with three serverless API routes. Locally they are served by `server.ts` (Express + Vite middleware); on Vercel the same routes live in `api/*.ts`.
+```text
+Browser
+├── MapLibre + Geoapify/OSM base map
+├── /api/pre-enriched ── curated place decisions and evidence
+├── /api/osm ─────────── Overpass candidate discovery
+└── /api/dig ─────────── optional SerpAPI + DeepSeek enrichment
 
-| Route | Method | Purpose |
-| --- | --- | --- |
-| `/api/osm` | POST | Proxy Overpass queries to 9 OSM instances with retry + backoff (CORS-safe) |
-| `/api/dig` | POST | Enrich a single POI: SerpAPI → Google Maps data → DeepSeek copy |
-| `/api/pre-enriched` | GET | Return the pre-crawled `src/data/dig-pois.json` dataset |
-
-Frontend data flow:
-
-```
-geolocation
-   │
-   ▼
-osmService ──POST /api/osm──► Overpass proxy ──► raw POIs
-   │
-   ├── mergeWithOSM ──GET /api/pre-enriched──► pre-crawled POIs
-   │
-   ▼
-poiCacheService (localStorage: stable 24h + timed 24h)
-   │
-   └── enrichPOIsBatch ──POST /api/dig──► SerpAPI + DeepSeek enrichment
+Decision pipeline
+raw place data → normalized sources → structured claims
+→ confidence/freshness checks → store-level synthesis → ranked map result
 ```
 
-## Getting Started
+The local server additionally exposes SQLite-backed demo endpoints for places, saves and feedback. The deployed MVP keeps saves and journals local-first in the browser; durable multi-user storage is a post-MVP backend task.
 
-**Prerequisites**: Node.js
+## Getting started
+
+Requirements: Node.js 20 or later.
 
 ```bash
 npm install
-cp .env.example .env   # then fill in your API keys
+cp .env.example .env
 npm run dev
 ```
 
-### Environment Variables
+Open [http://localhost:3000](http://localhost:3000).
 
-See [`.env.example`](./env.example) for the full list.
+### Environment variables
 
-| Variable | Scope | Required | Purpose |
-| --- | --- | --- | --- |
-| `SERPAPI_KEY` | backend | for `/api/dig` enrichment | Google Maps place data via SerpAPI |
-| `DEEPSEEK_API_KEY` | backend | optional | Generates `hook_tag` / `why_worth_it` copy; falls back to rule-based if unset |
-| `VITE_GOOGLE_MAPS_API_KEY` | frontend | for map rendering | Injected at build time for `@vis.gl/react-google-maps` |
-
-> `GEMINI_API_KEY` / `APP_URL` are legacy — auto-injected by Google AI Studio only, not used by Vercel.
-
-### Scripts
-
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start the full-stack dev server (`tsx server.ts`) |
-| `npm run build` | Production build (`vite build` → `dist/`) |
-| `npm run preview` | Preview the production build |
-| `npm run lint` | Type-check (`tsc --noEmit`) |
-| `npm run clean` | Remove `dist/` |
-
-## Project Structure
-
-```
-Dig/
-├── api/                 # Vercel serverless functions
-│   ├── dig.ts           #   POST /api/dig — SerpAPI + DeepSeek enrichment
-│   ├── osm.ts           #   POST /api/osm — Overpass proxy
-│   └── pre-enriched.ts  #   GET  /api/pre-enriched — static dataset
-├── server.ts            # Local dev: Express + Vite middleware (same 3 routes)
-├── vercel.json          # Vercel framework + SPA rewrites
-├── src/
-│   ├── App.tsx
-│   ├── screens/         # Wander, Search, ...
-│   ├── components/      # FactCard, BookmarkListSheet, ...
-│   ├── services/        # osmService, poiCacheService, preEnrichedService, ...
-│   ├── store/           # Zustand stores
-│   ├── hooks/
-│   ├── lib/             # firebase.ts
-│   ├── data/            # dig-pois.json (pre-enriched POIs)
-│   ├── constants/
-│   ├── types/
-│   └── utils/
-├── scripts/             # crawlers (openrice, reddit, xiaohongshu), summarize
-├── firestore.rules
-└── firebase-blueprint.json
-```
-
-## Deploy on Vercel
-
-The repo is wired for Vercel out of the box (`vercel.json` + `api/*.ts`). The Vite SPA builds to `dist/`; the three API routes run as Node serverless functions.
-
-1. Go to [vercel.com/new](https://vercel.com/new) and import `Oliveiis/Dig`.
-2. Framework preset should auto-detect as **Vite**. Confirm:
-   - Build Command: `vite build`
-   - Output Directory: `dist`
-3. Add environment variables (Project → Settings → Environment Variables):
-   - `SERPAPI_KEY`
-   - `DEEPSEEK_API_KEY`
-   - `VITE_GOOGLE_MAPS_API_KEY`
-4. Deploy. Vercel serves `dist/` for the SPA and `api/*.ts` for the routes automatically.
-5. (Optional) Connect your domain under Project → Settings → Domains.
-
-> Firestore reads/writes go directly from the browser to Firebase using the config in `firebase-applet-config.json`, so no backend env is needed for Firestore.
-
-## Local dev vs Vercel
-
-| Concern | Local (`npm run dev`) | Vercel |
+| Variable | Required | Purpose |
 | --- | --- | --- |
-| API routes | `server.ts` (Express) | `api/*.ts` (serverless) |
-| Static assets | Vite middleware | `dist/` |
-| `better-sqlite3` | available for scripts | not used at runtime |
-| Firestore config | `firebase-applet-config.json` (bundled into client) | same |
+| `VITE_GEOAPIFY_API_KEY` | Recommended | Loads the bright Klokantech Basic map tiles. The app falls back to OSM tiles when absent. |
+| `SERPAPI_KEY` | Optional | Enables Google place and review enrichment through `/api/dig`. |
+| `DEEPSEEK_API_KEY` | Optional | Produces enrichment summaries; rules and the pre-enriched dataset remain available without it. |
 
-## Development Notes
+`VITE_*` values are embedded into the frontend at build time. Never place a private server key under a `VITE_` name.
 
-- **Mobile-first** — always test within `.mobile-container` (optimized for 430px width)
-- **High contrast** — black accent + bold typography (`Syne` / `Inter` / `Space Mono`)
-- **Proxy external requests** — any call that may hit CORS goes through `/api/osm` (or a new `api/*.ts` route on Vercel)
+### Commands
 
-## Security Note
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Run the full local Express + Vite app |
+| `npm run lint` | Type-check with `tsc --noEmit` |
+| `npm run build` | Create the production Vite build in `dist/` |
+| `npm run preview` | Preview the static production build |
 
-`firebase-applet-config.json` contains the Firebase web config (including `apiKey`) and is checked in. This is the public Firebase web SDK config — access is governed by `firestore.rules`, not by the apiKey. Confirm the rules are deployed before relying on them in production.
+## Project structure
+
+```text
+Dig/
+├── api/                         # Vercel serverless API routes
+├── docs/
+│   ├── PRD-HK-ISLAND-MVP.md     # Product and implementation requirements
+│   └── UI-DESIGN-LANGUAGE.md    # Shared visual and interaction rules
+├── scripts/                     # Local data and SQLite utilities
+├── src/
+│   ├── components/              # Map, decision rail, half sheet, journal UI
+│   ├── data/hk-island-mvp.ts    # Editorial MVP dataset
+│   ├── screens/                 # Wander, Search, Journal and Settings
+│   ├── services/                # OSM and pre-enriched data clients
+│   ├── store/                   # Zustand state and local persistence
+│   └── utils/poiRanking.ts      # Evidence-aware recommendation ranking
+├── server.ts                    # Local Express + Vite server
+├── vercel.json                  # Vercel build and SPA routing
+└── vite.config.ts
+```
+
+## Deploy to Vercel
+
+The repository is configured for Vercel with `vercel.json`.
+
+```bash
+npx vercel
+```
+
+Use the Vite preset, `vite build` as the build command and `dist` as the output directory. Add `VITE_GEOAPIFY_API_KEY` to Preview and Production before the final production deployment. Add `SERPAPI_KEY` and `DEEPSEEK_API_KEY` only if on-demand enrichment is required.
+
+For a production release:
+
+```bash
+npx vercel --prod
+```
+
+## Data and prototype limitations
+
+- The bundled photographs are licensed mood images with source labels, not authenticated store uploads. The schema already distinguishes storefront, signature-item, interior and community photos.
+- Community data in the seed dataset is prototype/editorial content. A production ingestion pipeline must use authorized data access and preserve source traceability.
+- Opening state and recommendation confidence are time-sensitive and must be refreshed before expanding beyond the MVP.
+- SQLite is for local development only; production accounts, saves, feedback and geofencing require durable managed storage.
+
+## Quality checks
+
+Before publishing a change:
+
+```bash
+npm run lint
+npm run build
+```
+
+The map should also be checked at city, neighbourhood and street zoom levels in a 430px mobile viewport.

@@ -14,21 +14,23 @@ export function useProximityAlert() {
   useEffect(() => {
     if (!coords) return;
     
-    bookmarks.forEach(bookmark => {
-      if (bookmark.notified_nearby) return;
-      
-      const poi = allPOIs.find(p => p.id === bookmark.poi_id);
-      if (!poi) return;
-      
-      const dist = haversineMeters(coords, poi.coordinates);
-      if (dist <= 500) {
-        setProximityAlert({
-          poi_id: bookmark.poi_id,
-          poi_name: bookmark.poi_name,
-          distance_meters: Math.round(dist),
-        });
-        markNotified(bookmark.poi_id);
-      }
-    });
+    const nearest = bookmarks
+      .filter((bookmark) => !bookmark.notified_nearby)
+      .map((bookmark) => {
+        const poi = allPOIs.find((item) => item.id === bookmark.poi_id);
+        return poi ? { bookmark, poi, distance: haversineMeters(coords, poi.coordinates) } : null;
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry && entry.distance <= 500))
+      .sort((a, b) => a.distance - b.distance)[0];
+
+    if (nearest) {
+      setProximityAlert({
+        poi_id: nearest.bookmark.poi_id,
+        poi_name: nearest.bookmark.poi_name,
+        distance_meters: Math.round(nearest.distance),
+        message: nearest.poi.decision?.best_time || nearest.poi.decision?.headline,
+      });
+      markNotified(nearest.bookmark.poi_id);
+    }
   }, [coords, bookmarks, allPOIs, setProximityAlert, markNotified]);
 }

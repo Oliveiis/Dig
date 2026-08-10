@@ -52,6 +52,7 @@ export function JournalScreen({ onOpenSettings }: { onOpenSettings: () => void }
           >
             <button 
               onClick={onOpenSettings}
+              aria-label="打開賬戶設置"
               className="absolute top-12 right-6 w-10 h-10 rounded-full bg-app-surface border border-app-border flex items-center justify-center text-app-text active:scale-95 transition-transform"
             >
               <Settings size={20} />
@@ -110,6 +111,7 @@ export function JournalScreen({ onOpenSettings }: { onOpenSettings: () => void }
             </div>
             <button 
               onClick={onOpenSettings}
+              aria-label="打開賬戶設置"
               className="w-8 h-8 rounded-full bg-app-surface border border-app-border flex items-center justify-center text-app-text active:scale-95 transition-transform ml-1"
             >
               <Settings size={16} />
@@ -158,4 +160,3 @@ export function JournalScreen({ onOpenSettings }: { onOpenSettings: () => void }
     </div>
   );
 }
-

@@ -19,19 +19,20 @@ export function DistrictSelector({ isOpen, onClose, onSelect, currentDistrictId 
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[2000]"
+            className="fixed inset-0 bg-[#18323A]/24 backdrop-blur-[2px] z-[70]"
           />
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[2100] max-h-[80vh] overflow-hidden flex flex-col"
+            className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-[80] max-h-[80vh] overflow-hidden flex flex-col shadow-[0_-8px_24px_rgba(24,50,58,0.16)]"
           >
             <div className="p-6 border-b border-app-border flex items-center justify-between">
               <h3 className="text-xl font-bold font-display text-app-text">選擇探索區域</h3>
               <button 
                 onClick={onClose}
+                aria-label="關閉區域選擇"
                 className="w-10 h-10 rounded-full bg-app-bg flex items-center justify-center text-app-text2"
               >
                 <X size={20} />

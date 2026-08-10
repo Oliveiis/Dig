@@ -1,47 +1,49 @@
-# Project: Dig - First Complete Version (v1.0.0)
+# Project: Dig — Hong Kong Island MVP
 
-This file documents the baseline settings, UI design style, and technical architecture for the "Dig" application as of April 9, 2026. All future modifications should respect these core principles.
+This file defines the active product, design and implementation baseline. Detailed requirements live in `docs/PRD-HK-ISLAND-MVP.md`; visual rules live in `docs/UI-DESIGN-LANGUAGE.md`.
 
-## 1. Core Identity
+## 1. Product identity
+
 - **Name:** Dig
-- **Tagline:** A decision tool for street explorers. Get structured facts about shops nearby to decide whether to enter in 3 seconds.
-- **Target Platform:** Mobile-first (optimized for 430px width).
+- **Purpose:** Help travellers decide which nearby store is worth visiting, what is representative, and what risks matter.
+- **Current scope:** Hong Kong Island MVP.
+- **Primary viewport:** Mobile-first, optimized for 430px width.
+- **Core principle:** Build structured evidence before generating recommendation copy.
 
-## 2. UI Design Style (Baseline)
-- **Typography:**
-  - **Display:** `Syne` (Bold/Extra Bold) for impact.
-  - **Body:** `Inter` for readability.
-  - **Technical/Metadata:** `Space Mono` for a "structured facts" feel.
-- **Color Palette:**
-  - **Background:** `#F8F9FA` (Soft grey)
-  - **Surface:** `#FFFFFF` (Pure white)
-  - **Accent:** `#000000` (High contrast black)
-  - **Category Colors:**
-    - Cafe: `#c8f04a` (Lime)
-    - Restaurant: `#4da6ff` (Blue)
-    - Bar: `#ff4d4d` (Red)
-- **Visual Language:**
-  - **Apple-style Blurs:** `backdrop-blur-2xl` with subtle borders.
-  - **Structured Tags:** `claude-tag` style (mono, uppercase, small text).
-  - **Shadows:** iOS-style soft shadows (`ios-shadow`, `ios-shadow-lg`).
-  - **Layout:** Full-screen mobile container with hidden scrollbars.
+## 2. Experience rules
 
-## 3. Technical Architecture
-- **Framework:** React 19 + Vite 6.
-- **Styling:** Tailwind CSS 4.
-- **Backend:** Express + Vite Middleware (Full-stack).
-- **State Management:** Zustand.
-- **Animations:** Motion (Framer Motion).
-- **External APIs:**
-  - **OpenStreetMap (OSM):** Proxied via server-side `/api/osm` to bypass CORS.
-  - **Google Maps:** Used for map rendering via `@vis.gl/react-google-maps`.
+- Do not fill the map with every available POI.
+- City zoom hides Dig POIs; neighbourhood and street zooms reveal ranked candidates progressively.
+- Top recommendations, saved places and risk states must remain visually distinct.
+- Panning the map must not automatically refetch, rerank or recenter it.
+- Horizontal store cards do not move the map.
+- Selecting a card or marker opens one half-height store detail sheet. Do not reintroduce a duplicate SKU sheet or full-screen evidence page.
+- The store sheet prioritizes photos, store-level AI synthesis, signature-item set, risks, practical information and direct links.
+- When evidence is weak, show uncertainty instead of marketing labels.
 
-## 4. Key Features
-- **Street Explorer:** Real-time POI discovery based on geolocation.
-- **Structured Facts:** Quick-glance information (payment, signature items, caveats).
-- **CORS-safe OSM:** Server-side fetching with multi-instance fallback, shuffling, and exponential backoff retries for 504/429 errors.
+## 3. UI language
 
-## 5. Development Guidelines
-- **Maintain Mobile-First:** Always test within the `.mobile-container` constraints.
-- **Preserve High Contrast:** Stick to the black accent and bold typography.
-- **Proxy External Requests:** All external API calls that might hit CORS issues must be proxied through `server.ts`.
+- **Tone:** Bright, calm and information-led, with restrained Apple-style glass surfaces.
+- **Map:** Never use a dark overlay or brightness filter to solve label readability.
+- **Typography:** System sans-serif stack with PingFang HK/TC and Noto Sans HK. Do not use serif Chinese body text.
+- **Accent:** Blue-green (`#16778D`) with cool white and pale blue-grey surfaces.
+- **Hand-drawn elements:** Reserved for bookmarks, empty states and small memorable accents; never compete with map labels.
+- **Borders and shadows:** Light, narrow and sparse. Avoid thick black outlines and oversized rounded cards.
+
+## 4. Technical architecture
+
+- React 19, TypeScript, Vite 6 and Tailwind CSS 4.
+- MapLibre GL JS with Geoapify Klokantech Basic tiles and OSM fallback.
+- Zustand for local-first state.
+- Express + Vite middleware for local full-stack development.
+- TypeScript serverless functions in `api/` for Vercel.
+- SQLite is local MVP storage only; do not treat it as production persistence on Vercel.
+- OSM/Overpass requests go through `/api/osm`.
+- Optional Google place enrichment goes through `/api/dig`; do not expose private API keys to the frontend.
+
+## 5. Development checks
+
+- Preserve unrelated user changes in the worktree.
+- Keep the 430px mobile experience usable before adding desktop enhancements.
+- Run `npm run lint` and `npm run build` before publishing.
+- Browser-test map visibility, zoom tiers, card height, half-sheet scrolling and direct links.

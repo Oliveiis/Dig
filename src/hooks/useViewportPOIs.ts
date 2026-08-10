@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { POI } from '../types/poi';
 import { usePOIStore } from '../store/usePOIStore';
 import { useLocationStore } from '../store/useLocationStore';
@@ -31,7 +31,7 @@ export function useViewportPOIs(allPOIs: POI[]) {
 
   const filterCenter = viewportCenter ?? coords;
 
-  const visiblePOIs = allPOIs.filter(poi => {
+  const visiblePOIs = useMemo(() => allPOIs.filter(poi => {
     if (!ALLOWED_CATEGORIES.includes(poi.category)) return false;
     if (activeFilter !== 'all' && poi.category !== activeFilter) return false;
 
@@ -43,8 +43,7 @@ export function useViewportPOIs(allPOIs: POI[]) {
       return inLat && inLng;
     }
     return haversineMeters(filterCenter, poi.coordinates) <= FALLBACK_RADIUS_METERS;
-  });
+  }), [allPOIs, activeFilter, bounds, filterCenter.lat, filterCenter.lng]);
 
   return { visiblePOIs, viewportCenter: filterCenter, onBoundsChange };
 }
-

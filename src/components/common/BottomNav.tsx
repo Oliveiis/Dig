@@ -13,17 +13,19 @@ export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-app-bg border-t border-app-border flex items-center justify-around px-6 z-50">
+    <nav className="fixed bottom-0 left-1/2 z-50 flex h-[68px] w-full max-w-[430px] -translate-x-1/2 items-center justify-around bg-white px-4 pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_8px_rgba(24,50,58,0.08)]">
       {tabs.map(({ id, label, icon: Icon }) => (
         <button
           key={id}
           onClick={() => onTabChange(id as any)}
-          className={`flex flex-col items-center gap-1 transition-colors ${
-            activeTab === id ? 'text-app-accent' : 'text-app-text2'
+          aria-label={label}
+          aria-current={activeTab === id ? 'page' : undefined}
+          className={`flex-1 h-12 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-[color,background-color,transform] active:scale-95 ${
+            activeTab === id ? 'text-app-accent bg-accent-soft' : 'text-app-text3'
           }`}
         >
           <Icon size={20} strokeWidth={activeTab === id ? 2.5 : 2} />
-          <span className="text-[10px] font-sans font-medium">{label}</span>
+          <span className="text-[10px] font-sans font-semibold">{label}</span>
         </button>
       ))}
     </nav>

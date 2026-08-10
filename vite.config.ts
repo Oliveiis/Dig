@@ -15,8 +15,24 @@ export default defineConfig(({mode}) => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    optimizeDeps: {
+      // MapLibre owns its worker entry. Pre-bundling can leave a stale
+      // maplibre-gl-worker.mjs reference after the local server restarts.
+      exclude: ['maplibre-gl'],
+    },
     server: {
       hmr: process.env.DISABLE_HMR !== 'true',
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('maplibre-gl')) return 'maplibre';
+            if (id.includes('firebase')) return 'firebase';
+            if (id.includes('motion')) return 'motion';
+          },
+        },
+      },
     },
   };
 });

@@ -1,193 +1,207 @@
-import React, { useState } from 'react';
-import { Search, ChevronRight, X } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Bookmark, ChevronRight, Clock3, MapPin, Search, Sparkles, X } from 'lucide-react';
 import { usePOIStore } from '../store/usePOIStore';
 import { useLocationStore } from '../store/useLocationStore';
+import { useBookmarkStore } from '../store/useBookmarkStore';
 import { haversineMeters, formatDistance } from '../utils/distance';
-import { CATEGORY_COLOR, getSubcategoryIcon } from '../utils/categoryConfig';
 import { FactCard } from '../components/cards/FactCard';
-import { motion, AnimatePresence, PanInfo } from 'motion/react';
-import { POICategory } from '../types/poi';
+import { POI } from '../types/poi';
+
+type SearchFilter = 'open' | 'nearby' | 'takeaway' | 'saved';
+
+const suggestions = [
+  '中環附近能帶走的早餐',
+  '15 分鐘內吃點甜的',
+  '值得排一次的晚餐',
+  '收藏過但還沒去',
+];
+
+const districtAliases: Record<string, string> = {
+  中环: '中環', 上环: '上環', 西营盘: '西營盤', 坚尼地城: '堅尼地城',
+  湾仔: '灣仔', 铜锣湾: '銅鑼灣', 鲗鱼涌: '鰂魚涌',
+};
+
+function searchableText(poi: POI) {
+  return [
+    poi.name,
+    poi.district,
+    poi.subcategory,
+    poi.hook_tag,
+    poi.decision?.headline,
+    poi.decision?.summary,
+    poi.decision?.fit,
+    ...poi.signature_items,
+  ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function queryScore(poi: POI, rawQuery: string) {
+  if (!rawQuery.trim()) return poi.evidence_level === 'decision' ? 20 : 0;
+  let query = rawQuery.trim().toLowerCase();
+  for (const [from, to] of Object.entries(districtAliases)) query = query.replaceAll(from, to);
+  const haystack = searchableText(poi);
+  let score = 0;
+  const tokens = query.split(/[\s，。、“”]+/).filter((token) => token.length > 1);
+  for (const token of tokens) if (haystack.includes(token)) score += 12;
+  if (haystack.includes(query)) score += 28;
+  if (/甜|蛋撻|蛋挞|甜品|烘焙/.test(query) && (poi.category === 'bakery' || /甜|蛋撻|麵包/.test(haystack))) score += 24;
+  if (/早餐|早上|早晨/.test(query) && /早餐|咖啡|烘焙|07:|08:/.test(haystack)) score += 18;
+  if (/帶走|带走|外帶|边走边吃|邊走邊吃/.test(query) && /外帶|買走|邊走邊吃|烘焙/.test(haystack)) score += 20;
+  if (/晚餐|晚上/.test(query) && ['restaurant', 'bar'].includes(poi.category)) score += 18;
+  if (/排一次|排隊|排队/.test(query) && /排|等位/.test(haystack)) score += 12;
+  return score;
+}
 
 export const SearchScreen: React.FC = () => {
-  const { allPOIs } = usePOIStore();
-  const { coords } = useLocationStore();
+  const allPOIs = usePOIStore((state) => state.allPOIs);
+  const coords = useLocationStore((state) => state.coords);
+  const bookmarks = useBookmarkStore((state) => state.bookmarks);
   const [query, setQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<'all' | POICategory>('all');
-  const [selectedPOI, setSelectedPOI] = useState<any>(null);
-  const [isSheetDragging, setIsSheetDragging] = useState(false);
+  const [filters, setFilters] = useState<Set<SearchFilter>>(new Set());
+  const [selectedPOI, setSelectedPOI] = useState<POI | null>(null);
+  const bookmarked = useMemo(() => new Set(bookmarks.map((item) => item.poi_id)), [bookmarks]);
 
-  const handleSheetDragEnd = (_: any, info: PanInfo) => {
-    if (info.offset.y > 100 || info.velocity.y > 500) setSelectedPOI(null);
+  const results = useMemo(() => allPOIs
+    .map((poi) => {
+      const distance = haversineMeters(coords, poi.coordinates);
+      const score = queryScore(poi, query)
+        + (poi.evidence_level === 'decision' ? 18 : 0)
+        + Math.max(0, 10 - Math.round(distance / 250));
+      return { ...poi, distance_meters: distance, searchScore: score };
+    })
+    .filter((poi) => {
+      if (query.trim() && poi.searchScore <= 0) return false;
+      if (!query.trim() && poi.evidence_level !== 'decision') return false;
+      if (filters.has('open') && poi.is_open_now !== true) return false;
+      if (filters.has('nearby') && (poi.distance_meters ?? Infinity) > 1200) return false;
+      if (filters.has('saved') && !bookmarked.has(poi.id)) return false;
+      if (filters.has('takeaway') && !['bakery', 'cafe', 'shop'].includes(poi.category)) return false;
+      return true;
+    })
+    .sort((a, b) => b.searchScore - a.searchScore || (a.distance_meters ?? Infinity) - (b.distance_meters ?? Infinity)),
+  [allPOIs, coords, query, filters, bookmarked]);
+
+  const primary = results.slice(0, 3);
+  const alternatives = results.slice(3);
+
+  const toggleFilter = (filter: SearchFilter) => {
+    setFilters((current) => {
+      const next = new Set(current);
+      if (next.has(filter)) next.delete(filter);
+      else next.add(filter);
+      return next;
+    });
   };
 
-  const categories: { id: 'all' | POICategory; label: string }[] = [
-    { id: 'all', label: '全部' },
-    { id: 'cafe', label: '咖啡' },
-    { id: 'restaurant', label: '餐廳' },
-    { id: 'bar', label: '酒吧' },
-  ];
-
-  const filteredPOIs = allPOIs
-    .map(poi => ({
-      ...poi,
-      distance: haversineMeters(coords, poi.coordinates)
-    }))
-    .filter(poi => {
-      const matchesQuery = poi.name.toLowerCase().includes(query.toLowerCase()) ||
-                          poi.subcategory.includes(query) ||
-                          poi.district.includes(query);
-      const matchesCategory = activeCategory === 'all' || poi.category === activeCategory;
-      return matchesQuery && matchesCategory;
-    })
-    .sort((a, b) => a.distance - b.distance);
+  const resultRow = (poi: typeof results[number], featured = false) => {
+    const walk = Math.max(1, Math.round((poi.distance_meters ?? 0) / 78));
+    return (
+      <button
+        key={poi.id}
+        type="button"
+        onClick={() => setSelectedPOI(poi)}
+        className={`group flex w-full gap-3 text-left active:bg-app-surface2 ${featured ? 'py-4' : 'border-t border-app-border py-3.5'}`}
+      >
+        {poi.photos?.[0] ? (
+          <img src={poi.photos[0].url} alt={poi.photos[0].alt} loading="lazy" className={`${featured ? 'h-[86px] w-[86px]' : 'h-[68px] w-[68px]'} shrink-0 rounded-xl object-cover`} />
+        ) : (
+          <span className="flex h-[68px] w-[68px] shrink-0 items-center justify-center rounded-xl bg-app-surface2 text-app-text3"><MapPin size={19} /></span>
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className="truncate text-[14px] font-bold text-app-text">{poi.name}</span>
+            {bookmarked.has(poi.id) && <Bookmark size={13} className="shrink-0 fill-[#F2B84B] text-[#B67712]" />}
+          </span>
+          <span className="mt-1 line-clamp-2 text-[13px] font-semibold leading-[1.45] text-app-text2">{poi.decision?.headline || poi.subcategory}</span>
+          <span className="mt-2 flex items-center gap-2 text-[10px] font-medium text-app-text3">
+            <span className="inline-flex items-center gap-1"><MapPin size={11} />{poi.district}</span>
+            <span>步行 {walk} 分鐘</span>
+            {poi.is_open_now === true && <span className="text-[#237261]">營業中</span>}
+          </span>
+        </span>
+        <ChevronRight size={17} className="mt-1 shrink-0 text-app-text3 transition-transform group-active:translate-x-0.5" />
+      </button>
+    );
+  };
 
   return (
-    <div className="w-full h-full bg-app-bg flex flex-col overflow-hidden">
-      {/* Header */}
-      <header className="px-6 pt-12 pb-6 flex flex-col gap-6 bg-app-surface border-b border-app-border">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-4xl font-bold font-display text-app-text tracking-tight">搜索</h1>
-          <p className="text-[10px] font-mono text-app-text3 uppercase tracking-[0.2em]">Find your next destination</p>
-        </div>
-        
-        <div className="flex flex-col gap-4">
-          <div className="relative group">
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-app-text3 group-focus-within:text-app-accent transition-colors">
-              <Search size={20} />
-            </div>
-            <input
-              type="text"
-              placeholder="搜店名、品類、地點..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full h-14 bg-surface2 border-none rounded-2xl pl-12 pr-12 font-sans text-[15px] focus:outline-none focus:ring-2 focus:ring-app-accent/5 transition-all"
-            />
-            {query && (
-              <button 
-                onClick={() => setQuery('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-app-text3/20 flex items-center justify-center text-app-text2 active:scale-90 transition-transform"
-              >
-                <X size={14} />
-              </button>
-            )}
+    <div className="flex h-full w-full flex-col overflow-hidden bg-app-bg">
+      <header className="shrink-0 px-5 pb-3 pt-10">
+        <div className="flex items-end justify-between">
+          <div>
+            <h1 className="text-[24px] font-bold tracking-[-0.03em] text-app-text">今天想找什麼？</h1>
+            <p className="mt-1.5 text-[12px] text-app-text2">可以直接說品項、時間和你不想遇到的事</p>
           </div>
+          <span className="rounded-full bg-accent-soft px-2.5 py-1 text-[10px] font-semibold text-app-accent">港島 MVP</span>
+        </div>
 
-          <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
-                className={`px-6 py-2.5 rounded-full font-sans text-[14px] font-bold transition-all whitespace-nowrap border ${
-                  activeCategory === cat.id 
-                    ? 'bg-app-accent text-white border-app-accent' 
-                    : 'bg-white text-app-text border-app-border hover:border-app-text2'
-                }`}
-              >
-                {cat.label}
-              </button>
+        <label className="mt-4 block">
+          <span className="sr-only">搜尋店鋪、品項或場景</span>
+          <span className="relative block">
+            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-app-text2" />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="例如：中環能帶走的早餐"
+              className="h-12 w-full rounded-xl bg-white pl-11 pr-11 text-[14px] text-app-text shadow-[0_2px_7px_rgba(24,50,58,0.09)] placeholder:text-app-text2"
+            />
+            {query && <button type="button" onClick={() => setQuery('')} aria-label="清除搜尋" className="absolute right-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-app-surface2 text-app-text2"><X size={14} /></button>}
+          </span>
+        </label>
+
+        {!query && (
+          <div className="mt-3 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+            {suggestions.map((suggestion) => (
+              <button key={suggestion} type="button" onClick={() => setQuery(suggestion)} className="min-h-9 shrink-0 rounded-full bg-white px-3 text-[11px] font-medium text-app-text2 shadow-[0_1px_4px_rgba(24,50,58,0.08)]">{suggestion}</button>
             ))}
           </div>
+        )}
+
+        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {([
+            ['open', '現在營業', Clock3],
+            ['nearby', '15 分鐘內', MapPin],
+            ['takeaway', '能帶走', Sparkles],
+            ['saved', '已收藏', Bookmark],
+          ] as Array<[SearchFilter, string, React.ElementType]>).map(([id, label, Icon]) => (
+            <button key={id} type="button" onClick={() => toggleFilter(id)} aria-pressed={filters.has(id)} className={`flex min-h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[11px] font-semibold ${filters.has(id) ? 'bg-app-accent text-white' : 'bg-app-surface2 text-app-text2'}`}>
+              <Icon size={13} /> {label}
+            </button>
+          ))}
         </div>
       </header>
 
-      {/* Results List */}
-      <div className="flex-1 overflow-y-auto px-6 pt-6 pb-32 no-scrollbar bg-app-bg">
-        <div className="flex flex-col gap-4">
-          <AnimatePresence mode="popLayout">
-            {filteredPOIs.map((poi, index) => {
-              const Icon = getSubcategoryIcon(poi.subcategory);
-              const color = CATEGORY_COLOR[poi.category];
-              
-              return (
-                <motion.div
-                  key={poi.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: index * 0.03 }}
-                  onClick={() => {
-                    setSelectedPOI(poi);
-                    usePOIStore.getState().digForPOI(poi);
-                  }}
-                  className="bg-app-surface rounded-2xl p-4 border border-app-border flex items-center gap-4 active:scale-[0.98] transition-all ios-shadow cursor-pointer"
-                >
-                  <div 
-                    className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0" 
-                    style={{ backgroundColor: `${color}15`, color }}
-                  >
-                    <Icon size={22} />
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-sans font-bold text-[15px] text-app-text truncate">{poi.name}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="claude-tag !px-1.5 !py-0.5 !text-[8px]">{poi.subcategory}</span>
-                      <span className="font-mono text-[10px] text-app-text3 uppercase tracking-wider">{poi.district}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="text-right flex flex-col items-end gap-1">
-                    <span className="font-mono text-[11px] font-bold text-app-text2">{formatDistance(poi.distance)}</span>
-                    <ChevronRight size={16} className="text-app-text3" />
-                  </div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-
-          {filteredPOIs.length === 0 && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="py-32 text-center flex flex-col items-center justify-center"
-            >
-              <div className="w-16 h-16 text-app-text3/30 mb-6">
-                <Search size={64} strokeWidth={1} />
+      <div className="flex-1 overflow-y-auto px-5 pb-28 no-scrollbar">
+        {results.length > 0 ? (
+          <>
+            <section>
+              <div className="flex items-center justify-between pt-3">
+                <h2 className="text-[15px] font-bold text-app-text">最適合現在</h2>
+                <span className="text-[10px] text-app-text3">按需求與步行時間排序</span>
               </div>
-              <h3 className="text-xl font-bold text-app-text mb-2">找不到結果</h3>
-              <p className="font-sans text-[13px] text-app-text3">試試其他關鍵詞或切換分類</p>
-            </motion.div>
-          )}
-        </div>
+              <div className="mt-1 divide-y divide-app-border">
+                {primary.map((poi) => resultRow(poi, true))}
+              </div>
+            </section>
+
+            {alternatives.length > 0 && (
+              <section className="mt-4">
+                <h2 className="pb-1 text-[13px] font-bold text-app-text2">順路備選</h2>
+                <div>{alternatives.map((poi) => resultRow(poi))}</div>
+              </section>
+            )}
+          </>
+        ) : (
+          <div className="flex min-h-[300px] flex-col items-center justify-center text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft text-app-accent"><Search size={21} /></span>
+            <h2 className="mt-4 text-[15px] font-bold text-app-text">這組條件暫時沒有合適結果</h2>
+            <p className="mt-1 max-w-[250px] text-[12px] leading-5 text-app-text2">移除一個限制，或換成品項、街區和時間來搜尋。</p>
+            <button type="button" onClick={() => { setQuery(''); setFilters(new Set()); }} className="mt-4 min-h-11 rounded-xl bg-white px-4 text-[12px] font-semibold text-app-accent shadow-[0_2px_7px_rgba(24,50,58,0.09)]">清除條件</button>
+          </div>
+        )}
       </div>
 
-      {/* Detail View */}
-      <AnimatePresence>
-        {!!selectedPOI && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedPOI(null)}
-              className="fixed inset-0 bg-black/20 backdrop-blur-[2px]"
-              style={{ zIndex: 9998 }}
-            />
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              drag="y"
-              dragConstraints={{ top: 0 }}
-              dragElastic={0.2}
-              onDragStart={() => setIsSheetDragging(true)}
-              onDragEnd={handleSheetDragEnd}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[24px] shadow-2xl overflow-hidden flex flex-col"
-              style={{ maxHeight: '85vh', zIndex: 9999 }}
-            >
-              <div className="w-full flex justify-center py-3 cursor-grab active:cursor-grabbing">
-                <div className="w-12 h-1.5 bg-border2 rounded-full" />
-              </div>
-              <div className="flex-1 overflow-y-auto px-6 pb-12">
-                <div className="px-6 pb-10">
-                  {selectedPOI && <FactCard poi={selectedPOI} onClose={() => setSelectedPOI(null)} />}
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      {selectedPOI && <FactCard key={selectedPOI.id} poi={selectedPOI} initialStage="decision" onClose={() => setSelectedPOI(null)} />}
     </div>
   );
 };

@@ -4,6 +4,8 @@
 
 [English](./README.md) · [产品需求文档](./docs/PRD-HK-ISLAND-MVP.md) · [UI 设计语言](./docs/UI-DESIGN-LANGUAGE.md)
 
+**在线 MVP：**[dig-red.vercel.app](https://dig-red.vercel.app)
+
 Dig 解决的不是“附近有哪些店”，而是“附近哪几家现在值得去、为什么、应该买什么、需要注意什么”。产品不会把所有 POI 平铺在地图上，而是先筛选少量当前赢家，再把 Google、内容社区、官方信息和 Dig 用户日志整理成可核验的店铺级判断。
 
 当前版本是为 430px 手机视口设计的香港港岛 MVP。

@@ -4,6 +4,8 @@
 
 [简体中文](./README.zh-CN.md) · [Product requirements](./docs/PRD-HK-ISLAND-MVP.md) · [UI language](./docs/UI-DESIGN-LANGUAGE.md)
 
+**Live MVP:** [dig-red.vercel.app](https://dig-red.vercel.app)
+
 Dig reduces the work between “there are many places nearby” and “this one is worth walking to”. Instead of covering the map with every available POI, it ranks a small number of current winners and turns recent place content into structured, store-level guidance:
 
 - why the place is worth considering;

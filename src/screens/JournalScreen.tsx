@@ -9,8 +9,8 @@ import { JournalPanel } from '../components/journal/JournalPanel';
 import { motion, AnimatePresence } from 'motion/react';
 import { Settings } from 'lucide-react';
 
-export function JournalScreen({ onOpenSettings }: { onOpenSettings: () => void }) {
-  const { checkins } = useJournalStore();
+export function JournalScreen({ onOpenSettings, profileOnly = false }: { onOpenSettings: () => void; profileOnly?: boolean }) {
+  const { checkins, journals } = useJournalStore();
   const { favourites } = useFavouriteStore();
   const { bookmarks } = useBookmarkStore();
   const { profile } = useUserStore();
@@ -52,6 +52,7 @@ export function JournalScreen({ onOpenSettings }: { onOpenSettings: () => void }
           >
             <button 
               onClick={onOpenSettings}
+              aria-label="設定"
               className="absolute top-12 right-6 w-10 h-10 rounded-full bg-app-surface border border-app-border flex items-center justify-center text-app-text active:scale-95 transition-transform"
             >
               <Settings size={20} />
@@ -84,7 +85,7 @@ export function JournalScreen({ onOpenSettings }: { onOpenSettings: () => void }
                 <span className="block text-[9px] font-mono text-app-text3 uppercase mt-0.5">收藏</span>
               </div>
               <div className="flex-1 text-center">
-                <span className="block text-[17px] font-bold font-display text-app-text">5</span>
+                <span className="block text-[17px] font-bold font-display text-app-text">{journals.length}</span>
                 <span className="block text-[9px] font-mono text-app-text3 uppercase mt-0.5">日誌</span>
               </div>
             </div>
@@ -110,6 +111,7 @@ export function JournalScreen({ onOpenSettings }: { onOpenSettings: () => void }
             </div>
             <button 
               onClick={onOpenSettings}
+              aria-label="設定"
               className="w-8 h-8 rounded-full bg-app-surface border border-app-border flex items-center justify-center text-app-text active:scale-95 transition-transform ml-1"
             >
               <Settings size={16} />
@@ -118,8 +120,8 @@ export function JournalScreen({ onOpenSettings }: { onOpenSettings: () => void }
         )}
       </AnimatePresence>
 
-      {/* Tabs */}
-      <div className="flex border-b border-app-border bg-app-bg sticky top-0 z-10">
+      {/* The demo has a dedicated journal destination; live mode keeps its tabs. */}
+      {profileOnly ? <h2 className="px-6 pt-3 text-sm font-semibold">人設 & 足跡</h2> : <div className="flex border-b border-app-border bg-app-bg sticky top-0 z-10">
         <button 
           onClick={() => setActiveTab('profile')}
           className={`flex-1 py-3 text-[11px] font-mono transition-all relative ${
@@ -142,14 +144,14 @@ export function JournalScreen({ onOpenSettings }: { onOpenSettings: () => void }
             <motion.div layoutId="tab-underline" className="absolute bottom-0 left-1/4 right-1/4 h-[2px] bg-app-accent rounded-full" />
           )}
         </button>
-      </div>
+      </div>}
 
       {/* Content Area */}
       <div 
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-6 pt-6 pb-32 no-scrollbar"
       >
-        {activeTab === 'profile' ? (
+        {profileOnly || activeTab === 'profile' ? (
           <PersonaPanel persona={persona} checkins={checkins} />
         ) : (
           <JournalPanel checkins={checkins} />

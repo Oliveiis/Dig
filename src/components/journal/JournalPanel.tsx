@@ -1,71 +1,23 @@
-import { CheckinEntry } from '../../types/poi';
+import { useState } from 'react';
+import { Plus, ArrowUpRight } from 'lucide-react';
+import { useJournalStore } from '../../store/useJournalStore';
+import type { CheckinEntry, JournalEntry } from '../../types/poi';
+import { Modal } from '../../demo/Modal';
 
-interface JournalPanelProps {
-  checkins: CheckinEntry[];
-}
-
-export function JournalPanel({ checkins }: JournalPanelProps) {
-  // Mock journal entries based on checkins
-  const journals = [
-    {
-      date: "2026年3月 · 西營盤漫遊",
-      title: "那個週六我在西營盤喝了三杯咖啡",
-      body: "從 My Little Cup 的燕麥拿鐵開始，到 Cupping Room 的手冲，最後在一家沒有名字的窗口小店結束。這條街的密度讓人上癮……",
-      tags: ["精品咖啡", "西營盤", "週末漫遊"],
-      stops: ["☕", "☕", "☕"],
-      count: 3
-    },
-    {
-      date: "2026年2月 · 中環深夜",
-      title: "亞洲最佳酒吧到底值不值得排45分鐘",
-      body: "The Old Man 的 Negroni 讓我重新理解了什麼叫做「平衡感」。等位的時間很痛苦，但進去的那一刻完全值得……",
-      tags: ["調酒", "中環", "亞洲50最佳"],
-      stops: ["🍸"],
-      count: 1
-    },
-    {
-      date: "2026年1月 · 上環探店",
-      title: "一個人的上環下午，找到了三家從未見過的店",
-      body: "沒有計劃，沒有攻略，只帶著 Dig 和一雙腿。上環的密度永遠讓我驚喜，每次轉角都是新的發現……",
-      tags: ["上環", "買手店", "漫無目的"],
-      stops: ["☕", "🧥", "🍜"],
-      count: 3
-    }
-  ];
-
-  return (
-    <div className="flex flex-col gap-8 pb-10">
-      {journals.map((j, i) => (
-        <div key={i} className="flex flex-col gap-3 pb-8 border-b border-app-border last:border-none">
-          <div className="text-[9px] font-mono text-app-text3 uppercase tracking-wider">{j.date}</div>
-          <h3 className="text-[17px] font-bold font-display text-app-text leading-tight">{j.title}</h3>
-          <div className="w-full aspect-[16/7] bg-app-surface border border-app-border rounded-2xl flex items-center justify-center">
-            <span className="text-[10px] font-mono text-app-text3 uppercase tracking-widest">📷 封面照片</span>
-          </div>
-          <p className="text-[13px] text-app-text2 leading-relaxed">
-            {j.body}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {j.tags.map(tag => (
-              <span key={tag} className="px-2 py-0.5 rounded-full border border-app-border text-[9px] font-mono text-app-text3">
-                {tag}
-              </span>
-            ))}
-          </div>
-          <div className="flex items-center justify-between mt-1">
-            <div className="flex gap-1.5">
-              {j.stops.map((s, idx) => (
-                <div key={idx} className="w-6 h-6 rounded-full bg-app-surface border border-app-border flex items-center justify-center text-[11px]">
-                  {s}
-                </div>
-              ))}
-            </div>
-            <span className="text-[10px] font-mono text-app-text3 uppercase tracking-wider">
-              {j.count} 個打卡 · 閱讀全文 →
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
+export function JournalPanel({ checkins }: {checkins: CheckinEntry[]}) {
+ const {journals,addJournal}=useJournalStore();
+ const [editor,setEditor]=useState(false),[entry,setEntry]=useState<JournalEntry|null>(null);
+ const [title,setTitle]=useState(''),[content,setContent]=useState('');
+ return <div className="journal-cards">
+  <div className="journal-card-toolbar"><span>把喜歡的日常，留下來。</span><button aria-label="寫一篇日誌" onClick={()=>setEditor(true)}><Plus size={16}/>寫日誌</button></div>
+  {journals.map((j,i)=><button key={j.id} className="journal-card" onClick={()=>setEntry(j)}>
+   <div className={`journal-card-art art-${i%3}`}>
+    {j.cover_image?<img src={j.cover_image} alt="日誌封面"/>:<><span className="diary-sticker sticker-a">{i%2?'NIGHT<br/>WALK'.split('<br/>').map((t,k)=><span key={k}>{t}</span>):<><span>COFFEE</span><b>CLUB</b><span>西營盤</span></>}</span><span className="diary-sticker sticker-b">{i%2?'🌙':'☕'}</span><span className="diary-sticker sticker-c">{i%2?'GOOD<br/>NIGHTS'.split('<br/>').map((t,k)=><span key={k}>{t}</span>):<><span>SLOW</span><span>MORNINGS</span><b>🥐</b></>}</span></>}
+   </div>
+   <div className="journal-card-copy"><span className="eyebrow">{new Date(j.created_at).toLocaleDateString('zh-HK')}{['j1','j2'].includes(j.id)?' · 示例日誌':''}</span><h3>{j.title}</h3><p>{j.content}</p><div className="journal-card-footer"><span>{j.tags.slice(0,2).map(t=><span key={t}>#{t} </span>)}</span><ArrowUpRight size={17}/></div></div>
+  </button>)}
+  {journals.length===0&&<p className="empty-state">從一杯咖啡開始，寫下第一篇街角日誌。</p>}
+  {editor&&<Modal title="今天，想記住什麼？" onClose={()=>setEditor(false)}><form className="journal-form" onSubmit={e=>{e.preventDefault();if(!title.trim()||!content.trim())return;addJournal({id:crypto.randomUUID(),title:title.trim(),content:content.trim(),tags:['西營盤','城市漫遊'],poi_ids:[],created_at:new Date().toISOString()});setEditor(false);setTitle('');setContent('');}}><label>標題<input value={title} maxLength={80} onChange={e=>setTitle(e.target.value)} placeholder="在哪個街角停下來？" required/></label><label>今天的故事<textarea value={content} onChange={e=>setContent(e.target.value)} placeholder="一杯咖啡、一份點心，或是一個想記住的瞬間。" required/></label><small>只保存在這台裝置，不會公開發佈。</small><button className="primary-button" disabled={!title.trim()||!content.trim()}>保存日誌</button></form></Modal>}
+  {entry&&<Modal title="街角日誌" onClose={()=>setEntry(null)}><article className="full-entry"><span className="eyebrow">{new Date(entry.created_at).toLocaleDateString('zh-HK')}</span><h2>{entry.title}</h2><p>{entry.content}</p><div>{entry.tags.map(t=><span key={t} className="journal-tag">#{t}</span>)}</div>{entry.poi_ids.length>0&&<small>{checkins.filter(c=>entry.poi_ids.includes(c.poi_id)).length} 個已打卡地點</small>}</article></Modal>}
+ </div>;
 }

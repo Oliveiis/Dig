@@ -16,7 +16,8 @@ export default defineConfig(({mode}) => {
       },
     },
     server: {
-      hmr: process.env.DISABLE_HMR !== 'true',
+      hmr: process.env.DISABLE_HMR === 'true' ? false : { port: Number(process.env.HMR_PORT || 24678) },
+      watch: { usePolling: true, interval: 500 },
     },
   };
 });

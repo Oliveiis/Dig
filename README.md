@@ -1,153 +1,54 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Dig · Little discoveries around the corner
 
-# Dig
+English | [简体中文](./README.zh-CN.md)
 
-[English](./README.md) | [简体中文](./README.zh-CN.md)
+**Find a reason to step inside the next place you pass.**
 
-**A decision tool for street explorers — get structured facts about shops nearby and decide whether to walk in, in 3 seconds.**
+Dig is a food discovery product for people who enjoy exploring a city on foot. It brings nearby places, short reasons to visit, and personal collections onto one map—helping an unplanned walk find its next stop.
 
-🌐 **Live demo (AI Studio)**: https://ai.studio/apps/da74fa5a-3561-4996-a330-f3f426169bc1
-▲ **Deploy on Vercel**: see [Vercel deployment](#deploy-on-vercel)
+The current mobile-first demo takes place in Sai Ying Pun, Hong Kong.
 
-Mobile-first web app that turns your surroundings into quick, structured shop facts (payment, signature items, caveats) so you can decide on the spot. Real-time POI discovery powered by OpenStreetMap + Google Maps, enriched by a multi-source food crawler.
+## The moment Dig is built for
 
-## Features
+You want a coffee or something to eat. You check a map for locations, browse recommendations elsewhere, then return to the map to work out where to go. There is plenty of information, but deciding whether the place in front of you is worth a visit still takes effort.
 
-- **Street Explorer** — real-time POI discovery based on geolocation
-- **Structured Facts** — quick-glance info: payment methods, signature items, caveats
-- **Bookmark & Journal** — save and revisit places
-- **Wander / Search** — purpose-built screens for browsing and finding
-- **Quick Check-in & Proximity Alerts** — lightweight logging and nearby nudges
-- **CORS-safe OSM proxy** — server-side fetching with multi-instance fallback, shuffling, and exponential backoff for 504/429
-- **Pre-enriched dataset** — cold loads served from a crawled & summarized POI dataset so the first paint is never empty
+Dig focuses on that decision: **help people judge a place first, then discover more nearby.**
 
-## Tech Stack
+It is designed for curious neighborhood walkers and visitors exploring an unfamiliar area. Helping someone understand a place’s appeal within a few seconds is an experience goal, still to be tested with users.
 
-- **Frontend**: React 19, Vite 6, Tailwind CSS 4, Zustand, Framer Motion, React Router
-- **Maps**: Google Maps (`@vis.gl/react-google-maps`), OpenStreetMap (proxied)
-- **Data**: Firestore, better-sqlite3 (offline scripts only)
-- **AI / Enrichment**: DeepSeek (hook_tag / why_worth_it copy), Google Gemini; POI enrichment via SerpAPI + DeepSeek
-- **Crawling**: Playwright (OpenRice, Reddit, Xiaohongshu)
+## How a walk unfolds
 
-## Architecture
+**Start with the neighborhood.** Open the demo and explore Sai Ying Pun without granting location access. Food icons distinguish coffee, bakeries, Chinese food, Japanese food, Western food, and more. As you move or zoom, clusters and category counts respond to the visible area.
 
-The app is a Vite SPA with three serverless API routes. Locally they are served by `server.ts` (Express + Vite middleware); on Vercel the same routes live in `api/*.ts`.
+**Notice a reason to stop.** A small capsule above a place rotates through product highlights, recommendations, or offers. Its icon follows the message: a new croissant gets a 🥐. Tap the capsule or place to explore its details and available information.
 
-| Route | Method | Purpose |
+**Keep an option for later.** Search and saved places sit at the top of the map. Food categories open a half-screen list with photos and short descriptions, making places easier to compare while keeping the neighborhood in view.
+
+**Turn a visit into a memory.** Check in to record the experience and unlock a themed stamp. Write a journal entry, or save the places in a community example collection. A list of places you would like to try becomes the starting point for another walk.
+
+## Three places to spend your time
+
+| Destination | What you want to do | What Dig offers |
 | --- | --- | --- |
-| `/api/osm` | POST | Proxy Overpass queries to 9 OSM instances with retry + backoff (CORS-safe) |
-| `/api/dig` | POST | Enrich a single POI: SerpAPI → Google Maps data → DeepSeek copy |
-| `/api/pre-enriched` | GET | Return the pre-crawled `src/data/dig-pois.json` dataset |
+| Wander | Decide where to eat now | A food map, short highlights, category lists, search, and saved places |
+| Journal | Keep what you enjoyed | Themed stamps, place collections, community inspiration, and personal notes |
+| My Corner | Look back on your discoveries | Your profile, exploration stats, taste persona, and visit history |
 
-Frontend data flow:
+Saving captures an intention; checking in and writing capture an experience. Together, they let a personal map of the city grow over time.
 
-```
-geolocation
-   │
-   ▼
-osmService ──POST /api/osm──► Overpass proxy ──► raw POIs
-   │
-   ├── mergeWithOSM ──GET /api/pre-enriched──► pre-crawled POIs
-   │
-   ▼
-poiCacheService (localStorage: stable 24h + timed 24h)
-   │
-   └── enrichPOIsBatch ──POST /api/dig──► SerpAPI + DeepSeek enrichment
-```
+## Product choices
 
-## Getting Started
+- **Leave room for the neighborhood.** Short highlights stay on the map; longer content belongs in details. A slim category shelf and zoom-aware grouping keep dense streets readable.
+- **Let food do some of the explaining.** Icons help identify categories, real shop photos support comparison, and short copy explains the reason to visit.
+- **Make remembering enjoyable.** Photo collages, visit stamps, and personal notes give collections a sense of memory. Stamps unlock through recorded check-ins.
+- **Keep the surroundings light.** Clear whites, misty blues, a few warm food accents, translucent surfaces, and rounded typography give the places room to stand out.
 
-**Prerequisites**: Node.js
+## What the demo includes today
 
-```bash
-npm install
-cp .env.example .env   # then fill in your API keys
-npm run dev
-```
+The demo supports a complete journey: discover a place → explore its details → save it → check in and collect a stamp → write a note. It includes 120 food-related map locations around Sai Ying Pun, with sourced photos for 10 places and clearly marked placeholders for the rest.
 
-### Environment Variables
+This version demonstrates a product direction. Place locations come from map records; highlights, offers, list rankings, and community stories are illustrative. They are not verified live promotions, actual platform rankings, or real community reviews. Saves, check-ins, and journals remain on the current device; cross-device sync and public community posting are not available. Map records and historical photos do not establish a place’s current trading status.
 
-See [`.env.example`](./env.example) for the full list.
+The next priorities are to test whether short highlights help people make a choice, whether a dense neighborhood remains easy to browse, and whether collections and stamps encourage another outing. Broader photo coverage, traceable recommendations, and current information are also part of the next stage.
 
-| Variable | Scope | Required | Purpose |
-| --- | --- | --- | --- |
-| `SERPAPI_KEY` | backend | for `/api/dig` enrichment | Google Maps place data via SerpAPI |
-| `DEEPSEEK_API_KEY` | backend | optional | Generates `hook_tag` / `why_worth_it` copy; falls back to rule-based if unset |
-| `VITE_GOOGLE_MAPS_API_KEY` | frontend | for map rendering | Injected at build time for `@vis.gl/react-google-maps` |
-
-> `GEMINI_API_KEY` / `APP_URL` are legacy — auto-injected by Google AI Studio only, not used by Vercel.
-
-### Scripts
-
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start the full-stack dev server (`tsx server.ts`) |
-| `npm run build` | Production build (`vite build` → `dist/`) |
-| `npm run preview` | Preview the production build |
-| `npm run lint` | Type-check (`tsc --noEmit`) |
-| `npm run clean` | Remove `dist/` |
-
-## Project Structure
-
-```
-Dig/
-├── api/                 # Vercel serverless functions
-│   ├── dig.ts           #   POST /api/dig — SerpAPI + DeepSeek enrichment
-│   ├── osm.ts           #   POST /api/osm — Overpass proxy
-│   └── pre-enriched.ts  #   GET  /api/pre-enriched — static dataset
-├── server.ts            # Local dev: Express + Vite middleware (same 3 routes)
-├── vercel.json          # Vercel framework + SPA rewrites
-├── src/
-│   ├── App.tsx
-│   ├── screens/         # Wander, Search, ...
-│   ├── components/      # FactCard, BookmarkListSheet, ...
-│   ├── services/        # osmService, poiCacheService, preEnrichedService, ...
-│   ├── store/           # Zustand stores
-│   ├── hooks/
-│   ├── lib/             # firebase.ts
-│   ├── data/            # dig-pois.json (pre-enriched POIs)
-│   ├── constants/
-│   ├── types/
-│   └── utils/
-├── scripts/             # crawlers (openrice, reddit, xiaohongshu), summarize
-├── firestore.rules
-└── firebase-blueprint.json
-```
-
-## Deploy on Vercel
-
-The repo is wired for Vercel out of the box (`vercel.json` + `api/*.ts`). The Vite SPA builds to `dist/`; the three API routes run as Node serverless functions.
-
-1. Go to [vercel.com/new](https://vercel.com/new) and import `Oliveiis/Dig`.
-2. Framework preset should auto-detect as **Vite**. Confirm:
-   - Build Command: `vite build`
-   - Output Directory: `dist`
-3. Add environment variables (Project → Settings → Environment Variables):
-   - `SERPAPI_KEY`
-   - `DEEPSEEK_API_KEY`
-   - `VITE_GOOGLE_MAPS_API_KEY`
-4. Deploy. Vercel serves `dist/` for the SPA and `api/*.ts` for the routes automatically.
-5. (Optional) Connect your domain under Project → Settings → Domains.
-
-> Firestore reads/writes go directly from the browser to Firebase using the config in `firebase-applet-config.json`, so no backend env is needed for Firestore.
-
-## Local dev vs Vercel
-
-| Concern | Local (`npm run dev`) | Vercel |
-| --- | --- | --- |
-| API routes | `server.ts` (Express) | `api/*.ts` (serverless) |
-| Static assets | Vite middleware | `dist/` |
-| `better-sqlite3` | available for scripts | not used at runtime |
-| Firestore config | `firebase-applet-config.json` (bundled into client) | same |
-
-## Development Notes
-
-- **Mobile-first** — always test within `.mobile-container` (optimized for 430px width)
-- **High contrast** — black accent + bold typography (`Syne` / `Inter` / `Space Mono`)
-- **Proxy external requests** — any call that may hit CORS goes through `/api/osm` (or a new `api/*.ts` route on Vercel)
-
-## Security Note
-
-`firebase-applet-config.json` contains the Firebase web config (including `apiKey`) and is checked in. This is the public Firebase web SDK config — access is governed by `firestore.rules`, not by the apiKey. Confirm the rules are deployed before relying on them in production.
+See the [product requirements and iteration history](./docs/PRD.md) and [shop photo credits](./public/shop-photos/SOURCES.md).
